@@ -1,0 +1,710 @@
+# Linear Algebra Background
+
+::: {.content-hidden unless-format="html"}
+{{< include _common.tex >}}
+:::
+
+```{julia}
+#| echo: false
+using LinearAlgebra
+using Plots
+using Polynomials
+```
+
+In this class we will mostly consider vector spaces over the reals, though it is sometimes necessary to also consider complex vector spaces.
+This overview of linear algebra will be incomprehensibly fast for those not already basically familiar with the concepts.
+Nonetheless, it is probably worth reading even if you have a strong linear algebra background, as some of the concepts we employ (such as the "quasi-matrix" perspective or our take on canonical forms) are not universally taught.
+
+## Vector spaces
+
+Vectors are things that we can add together and scale in a way that is consistent with how we usually think about those words.
+More formally, a vector space $\calV$ over a field $\bbF$ (which we will always take to be the real numbers $\bbR$ or the complex numbers $\bbC$) is a set together with a binary operation $+ : \calV \times \calV \rightarrow \calV$ (addition) and $\cdot : \bbF \times \calV \rightarrow \calV$ (scalar multiplication) satisfying the following axioms:
+
+- *Commutativity*: $\forall u, v \in \calV, u + v = v + u$
+- *Associativity*: $\forall u, v \in \calV, (u + v) + w = u + (v + w)$
+- *Existence of additivity identity*: $\exists 0 \in \calV$ s.t. $\forall u \in \calV, u + 0 = u$
+- *Existence of additive inverses*: $\forall u \in \calV, \exists -u \in \calV$ s.t. $u + -u = 0$
+- *Scalar multiply compatibility*: $\forall \alpha, \beta \in \bbF, v \in \calV$, $(\alpha \beta) v = \alpha (\beta v)$
+- *Scaling by 1*: If $1 \in \bbF$ is the multiplicative identity, then $\forall v \in \calV, 1 v = v$
+- *Distributivity for scalar addition*: $\forall \alpha, \beta \in \bbF, u \in \calV, (\alpha + \beta) u = \alpha u + \beta u$
+- *Distributivity for vector addition*: $\forall \alpha \in \bbF, u, v \in \calV, \alpha (u + v) = \alpha u + \alpha v$
+
+A *subspace* of a vector space is a set $\calU \subset \calV$ that is closed under addition and scaling, making $\calU$ itself a vector space.
+The *span* of a set of vectors $\calG \subset \calV$ is the smallest subspace containing $\calG$, i.e. everything that can be written as a linear combination of elements of $\calG$, i.e.
+$$
+  \operatorname{span}(\calG) = \{ u \in \calV : u = \sum_{g \in \calG} g c_g, c_g \in \bbF\}
+$$
+We say $\calG$ is a *spanning set* for a subspace $\calU$ if the span of $\calG$ is $\calU$.
+
+Any subspace can be generated as the span of some generating set, but we place special emphasis on the case when every element $\calU$ is a *unique* linear combination of $\calG$.
+In this case, we say the elements of $\calG$ are *linearly independent*.
+A necessary and sufficient condition for linear independence of $\calG \subset \calV$ is that the vector $0 \in \calV$ has the unique representation as a linear combination
+$$
+  0 = \sum_{g \in \calG} 0 g.
+$$
+If a spanning set is linear independent, it also has minimal cardinality.
+
+If $\calG = \{ v_1, \ldots, v_k \}$ is a spanning set of minimal cardinality, then any element $u$ in the generated set $\calU$ has a *unique* representation
+$$
+  u = \sum_{j=1}^k v_j c_j
+$$
+for coefficients $c_j \in \bbF$.
+In this case, we say the set $\calG$ is *linearly independent*.
+
+A *sum* of two subspaces $\calU \subset \calV$ and $\calW \subset \calV$ is the set $\calU + \calW \equiv \{ u+w : u \in \calU, w \in \calW\}$.
+We say $\calU + \calW$ is a *direct sum* if there is a unique decomposition of each element $v \in \calU + \calW$ as $v = u + w$ for $u \in \calU$ and $v \in \calV$.
+The sum $\calU + \calW$ is a direct sum iff the unique decomposition of $0$ is as $0 + 0$.
+Alternately, we can say that if $\calG$ and $\calH$ are linearly independent on their own, then $\operatorname{span}(\calG) + \operatorname{span}(\calH)$ is a direct sum iff $\calG \cup \calH$ is a linearly independent subset of $\calV$.  When we know a sum of subspaces is a direct sum, we often use the symbol $\oplus$ instead of $+$.
+
+## Examples
+
+Some common examples of vector spaces include:
+
+### Dual spaces {.unnumbered}
+
+For every vector space $\calV$ over a field $\bbF$, there is an associated *dual space*[^dual-potato-chips] of all[^bdd-or-continuous-dual] linear maps from $\calV$ into $\bbF$
+$$
+  \calV^* = \{ w^* : \calV \rightarrow \bbF \mbox{ s.t. } w^* \mbox{ is linear} \},
+$$
+i.e. a *dual vector* (also called a *linear functional*) $w^* \in \calV^*$ represent a map such that $w^* (\alpha v) = \alpha (w^* v)$ and $w^* (u+v) = w^* u + w^* v$ for all scalars $\alpha \in \bbF$ and vectors $u, v \in \calV$.
+
+[^dual-potato-chips]: When describing dual spaces, Prof. Kahan always used to look sternly over his glasses and pronounce: "Vector spaces are like potato chips; you can never have only one."
+
+[^bdd-or-continuous-dual]: We typically restrict our attention to continuous linear maps -- or, in the case of a normed vector space, to maps that are bounded.  However, this distinction only matters when we are dealing with infinite-dimensional spaces.
+
+### Concrete spaces {.unnumbered}
+
+Concrete vector spaces are just lists of elements of $\bbF$ (real or complex numbers for this class), which we conventionally arrange into a column[^column-vs-row]:
+$$
+  c = \begin{bmatrix} c_1 \\ \vdots \\ c_n \end{bmatrix}.
+$$
+The vector space $\bbF^m$ is useful both in its own right and because it is the main vector space we represent in the computer.  Any finite-dimensional vector space of dimension $n$ can be represented as the image of $\bbF^n$ under a *basis map*.
+
+A vector in Julia directly represents a vector in $\bbF^n$ as an array of floating point numbers laid out sequentially in memory.  Entries in a vector in Julia are separated by semicolons or commas; if white space is used instead, the vector is interpreted as a row vector (an element of $\bbF^{1 \times n}$).
+
+```{julia}
+# Example (column) vector
+[1.0; 0.0; 2.5]
+```
+
+```{julia}
+# Example row vector
+[1.0  2.0  3.0]
+```
+
+[^column-vs-row]: In statistics, concrete vectors are frequently arranged as rows by default; the column-oriented perspective we use is common in numerical computing. 
+
+### Matrix spaces {.unnumbered}
+
+A matrix $A \in \bbF^{m \times n}$ is a two-dimensional array of elements of $a_{ij} \in \bbF$ (real or complex) with row index $i \in [m]$ and column index $j \in [n]$[^bracket-range-convention].  While matrices can be seen as just a special type of concrete vector space where we use two integer indices rather than one, they are most usefully interpreted as representations of linear maps between vector spaces (or other types of maps discussed later in this chapter).
+
+A matrix in Julia directly represents a vector in $\bbF^{m \times n}$ as an array of floating point numbers laid out column-by-column in memory.
+The same memory can be interpreted as a vector of length $mn$ where the entries are laid out in column-major order.
+
+```{julia}
+# Example of a 2-by-3 matrix
+[1.0 3.0 5.0;
+ 2.0 4.0 6.0]
+```
+
+```{julia}
+# Flatten a 2-by-3 matrix into a length 6 vector
+let
+  A = [1.0 3.0 5.0;
+      2.0 4.0 6.0]
+  A[:]
+end
+```
+
+[^bracket-range-convention]: We use $[n]$ for natural numbers $n$ to denote the index set $\{1, 2, \ldots, n\}$.
+
+### Polynomial spaces {.unnumbered}
+
+The polynomial space $\calP_d$ consists of all univariate polynomials of degree at most $d$:
+$$
+  \calP_d = \left\{ \sum_{j=0}^d c_j x^j : c_j \in \bbF \right\}.
+$$
+Polynomial spaces are very useful in applications, but they are also highly useful pedagogically as examples of familiar finite-dimensional vector spaces other than the concrete spaces $\bbF^n$.
+
+Polynomials in Julia can be represented as objects from [Polynomials.jl](http://juliamath.github.io/Polynomials.jl/stable/), a library that directly supports vector algebra with polynomials along with differentiation, integration, and root-finding.
+
+```{julia}
+let
+  p = Polynomial([1, 0, 2])  # Represent 1 + 2x^2
+  q = Polynomial([4, 5])     # Represent 4 + 5x
+  s = p + q                  # This should represent 5 + 5x + 2x^2
+  s, s(2)                    # Show s and evaluation at x = 2
+end
+```
+
+Alternately, we may choose to write polynomials in Julia directly as functions.  In this case, Julia does not know about addition and scalar multiplication, which must be implemented directly.  So while we cannot write `q = 2*p`, for example, we are fine defining `q(x) = 2*p(x)`.
+
+```{julia}
+let
+  p(x) = 1.0 + x^2/2
+  xs = range(-1.0, 1.0, length=100)
+  plot(xs, p.(xs))
+end
+```
+
+### Linear maps {.unnumbered}
+
+The space $\mathcal{L}(\calU, \calV)$ is the space of all[^all-or-bounded] linear maps between vector spaces $\calU$ and $\calV$:
+$$
+  \mathcal{L}(\calU, \calV) = \{ L : \calU \rightarrow \calV \mbox{ s.t. } L \mbox{ is linear}\}.
+$$
+The dual space $\calV^* = \mathcal{L}(\calV, \bbF)$ is an important special case.
+
+[^all-or-bounded]: If $\calU$ and $\calV$ are normed vector spaces, we restrict our attention to all *bounded* linear maps.  This is a distinction that only matters in the infinite dimensional setting, so if you only care about finite-dimensional spaces, you may promptly forget about this footnote.
+
+### $k$-times differentiable functions {.unnumbered}
+
+We will frequently care about the vector space of $k$-times continuously differentiable functions from a domain $\Omega \subset \bbF^n$ into $\bbF$.
+Unlike all our other examples, this is an infinite-dimensional vector space.
+Finite-dimensional vector spaces have a number of nice properties that infinite-dimensional vector spaces (like $\mathcal{C}^k(\Omega, \bbF)$) often lack.
+The technical details of infinite-dimensional vector spaces are the topic of functional analysis courses.
+We will largely elide these details, but there are a few points later in the class where it will be necessary to deal with such annoyances.
+
+## Quasimatrices
+
+A column-wise *quasi-matrix* is an ordered list of vectors $v_1, \ldots, v_k \in \calV$ written as
+$$
+  V = \begin{bmatrix} v_1 & \ldots & v_k \end{bmatrix}.
+$$
+We refer to the vectors $v_j$ as the *columns* of the quasi-matrix.
+The primary use of quasi-matrices is to give us a compact notation for writing linear combinations of the columns; for a coefficient vector $c \in \bbF^k$, we write
+$$
+  Vc \equiv \sum_{j = 1}^k v_j c_j.
+$$
+Following this notation, we will use the symbol $V$ to refer either to the quasi-matrix or to the induced linear mapping from $\bbF^n$ to $\calV$.  The range space of $V$ is simply the span of the columns; we will refer to this space as either $\mathcal{R}(V)$ or as $\operatorname{span}(V)$.
+
+In a row-wise quasi-matrix, we write a list of dual vectors $w_1^*, \ldots, w_k^* \in \calV^*$ as
+$$
+  W^* = \begin{bmatrix} w_1^* \\ \vdots \\ w_k^* \end{bmatrix}
+$$
+A row-wise quasi-matrix gives us a compact notation for writing a concrete vector of linear functionals applied to a vector, i.e.
+$$
+  c = W^* v \mbox{ means } c_j = w_j^* v.
+$$
+As with column-wise quasi-matrices, we will refer interchangeably to a row-wise quasi-matrix $W^*$ and the induced linear map from $\calV \rightarrow \bbF^k$.
+
+A matrix $A \in \bbF^{m \times n}$ can be interpreted as either a column-wise quasi-matrix (where the columns of $A$ are viewed as vectors in $\bbF^m$) or as a row-wise quasi-matrix (where the rows of $A$ are viewed as row vectors in $(\bbF^n)^*$).
+
+## Bases
+
+We deal with vectors from two perspectives:
+
+- *Abstract*: A vector is an object that can be scaled or added to other vectors.
+- *Concrete*: A vector is a column of numbers.
+
+We map between the abstract and concrete pictures of (finite-dimensional) vector spaces using a basis. 
+
+A *basis* quasi-matrix[^basis-as-quasimatrix] for a vector space $\calV$ is a quasi-matrix $V$ with linearly independent columns that spans $\calV$ (the number of columns is the dimension of $\calV$).  The basis quasi-matrix represents an invertible linear map from $\bbF^n$ to $\calV$.  We write $V^{-1}$ to denote the inverse map, which we think of as a row-wise quasi-matrix.  The rows in $V^{-1}$ form a basis for the dual space $\calV^*$; this basis is called the *dual basis* to $V$.
+We note that the composition $V^{-1} V$ is an identity map on the concrete space $\bbF^n$, while $V V^{-1}$ is the identity map on the abstract space $\calV$.
+
+When $W$ and $V$ are two separate bases for the same space, the *change of basis matrix* $A = W^{-1} V$ tells us how to transform the coefficients in the $V$ basis into coefficients in the $W$ basis.
+That is, if we write $v \in \calV$ as $v = Vc = Wd$, we have
+\begin{align}
+  v &= Vc \\
+  d &= W^{-1} v \\
+  d &= W^{-1} V c = A c.
+\end{align}
+Using distributivity, we can interpret $A$ column-wise: the columns of $A$ represent the vectors $v_1, \ldots, v_n$ written in terms of the $W$ basis
+$$
+  d = W^{-1} v = W^{-1} \left( \sum_{j=1}^n v_j c_j \right) = \sum_{j=1}^n (W^{-1} v_j) c_j = Ac.
+$$
+The $A$ matrix must also be invertible, and the matrix $A^{-1} = V^{-1} W$ represents the linear mapping from the $W$ basis coefficients back to the $V$ basis coefficients, and the columns of $A^{-1}$ represent the vectors $w_1, \ldots, w_n$ written in terms of the $V$ basis.
+
+[^basis-as-quasimatrix]: In most linear algebra texts, we talk about a basis *set* of $\calV$, i.e. a linearly independent spanning set (with no particular ordering).  Using a quasi-matrix instead of a set just means we also pick an ordering, which we generally do in computation anyhow.
+
+### Example: Polynomial bases {.unnumbered}
+
+For example, the *power basis* of the vector space $\calP_d$ of polynomials of degree at most $d$ in one variable is the basis of $d+1$ monomials $\begin{bmatrix} x^0 & x^1 & x^2 & \ldots & x^d \end{bmatrix}$.
+Using this basis, we might concretely represent a polynomial $p(x) = 1 + x^2/2 \in \calP_2$ as
+$$
+  p(x) =
+  \begin{bmatrix} 1 & x & x^2 \end{bmatrix}
+  \begin{bmatrix} 1 \\ 0 \\ 0.5 \end{bmatrix}.
+$$
+For numerical purposes, we often prefer the *Chebyshev bases* for $\calP_d$, with basis vectors given by
+\begin{align}
+  T_0(x) &= 1 \\
+  T_1(x) &= x \\
+  T_{k+1}(x) &= 2x T_k(x)-T_{k-1}(x), \mbox{ for } k \geq 1
+\end{align}
+With respect to this basis, we might concretely represent $p(x) = 1 + x^2/2 \in \calP_2$ as
+$$
+  p(x) = 
+  \begin{bmatrix} T_0(x) & T_1(x) & T_2(x) \end{bmatrix}
+  \begin{bmatrix} 1.25 \\ 0 \\ 0.25 \end{bmatrix}.
+$$
+
+For a given degree $d$, let us denote the power basis and the Chebyshev bases as
+\begin{align}
+  P &= \begin{bmatrix} x^0 & x^1 & \ldots & x^d \end{bmatrix} \\
+  T &= \begin{bmatrix} T_0(x) & T_1(X) & \ldots & T_d(x) \end{bmatrix}
+\end{align}
+The three-term recurrence relationship between the Chebyshev polynomials lets us write a simple computation for the matrix representing $P^{-1} T$ mapping from Chebyshev coefficients to coefficients in the power basis.
+
+```{julia}
+function cheb2power(d)
+  A = zeros(d+1, d+1)
+  A[1,1] = 1.0               # First column represents T_0 in power basis
+  if d > 1 A[2,2] = 1.0 end  # Second column represents T_1 in power basis
+  for j = 2:d
+    # Compute representation of T_{j+1} = 2*x*T_{j} - T_{j-1}
+    A[2:d+1,j+1] = 2*A[1:d,j]  # Multiplication by x shifts power basis coefficients
+    A[:,j+1] -= A[:,j-1]       # Subtract off the T_{j-1} coefficients
+  end
+  return UpperTriangular(A)
+end
+```
+
+The 3-by-3 matrix representing the map from the Chebyshev coefficients to power coefficients can be computed by `cheb2power(2)`.
+
+```{julia}
+cheb2power(2)
+```
+
+Hence, we have
+$$
+  T(x) = P(x) \begin{bmatrix} 1 & 0 & -1 \\ 0 & 1 & 0 \\ 0 & 0 & 2 \end{bmatrix}
+$$
+or, reading column-by-column,
+\begin{align}
+  T_0(x) &= x^0 \\
+  T_1(x) &= x^1 \\
+  T_2(x) &= 2x^2 - x^0
+\end{align}
+This matrix is *upper triangular*; that is, all entries below the main diagonal are zero.  Intuitively, we expect this because $T_j(x)$ is a degree $j$ polynomial, so the maximum monomial involved is $x^j$.
+
+To convert a vector of coefficients in the power basis into a vector of Chebyshev coefficients, we solve a linear system involving $A = P^{-1} T$.  We prefer not to form the $A^{-1}$ explicitly; instead, we solve a linear system using the backslash operator.
+
+```{julia}
+let
+  A = cheb2power(2)  # Compute Chebyshev -> power basis coefficient mapping
+  A\[1.0; 0.0; 0.5]  # Solve for the Chebyshev coefficients for our example
+end
+```
+
+## Norms
+
+A *norm* $\|\cdot\|$ provides a way to measure the lengths of vectors.
+Norms are characterized by three properties for any scalar $\alpha$ and vectors $u, v$:
+
+Positive definiteness
+: $\|v\| \geq 0$; and $\|v\| = 0$ iff $v = 0$
+
+Homogeneity
+: $\|\alpha v\| = |\alpha| \|v\|$
+
+Subadditivity (aka triangle inequality)
+: $\|u+v\| \leq \|u\| + \|v\|$
+
+All norms are *equivalent* on finite dimensional spaces[^equivalence-fd-only]; that is, if $\|\cdot\|$ and $\|\cdot\|_*$ are two different norms on a finite-dimensional space $\calV$, then there exist positive real constants $c, C$ such that for all $v \in \calV$
+$$
+  c \|v\| \leq \|v\|_* \leq C\|v\|.
+$$
+However, the constants may be rather large!
+
+In normed infinite-dimensional spaces, we often insist that the space be *complete* with respect to the norm -- that is, if we have a Cauchy sequence in the space, it must converge.  Such spaces are called *Banach spaces*.
+
+[^equivalence-fd-only]: On infinite dimensional spaces, norms are *not* all equivalent.
+
+### Norms on concrete spaces {.unnumbered}
+
+The three most common vector norms we work with for the spaces $\bbR^n$ and $\bbC^n$ are
+
+Euclidean norm (aka 2-norm)
+: $\|v\|_2 = \sqrt{\sum_{j=1}^n |v_j|^2}$
+
+Max norm (aka sup norm, $\infty$-norm)
+: $\|v\|_\infty = \max_j |v_j|$
+
+1-norm
+: $\|v\|_1 = \sum_{j=1}^n |v_j|$
+
+These norms are all implemented in the Julia [LinearAlgebra](https://docs.julialang.org/en/v1/stdlib/LinearAlgebra/#LinearAlgebra.nor) package:
+
+```{julia}
+let
+   x = [3; 4]
+   norm(x,Inf), norm(x,2), norm(x,1)
+end
+```
+
+Many other norms can be related to one of these three norms.
+For example, we can frequently connect these norms to other norms by *scaling*:
+for any norm $\|\cdot\|$ and any invertible matrix $A$,
+the function $\|\cdot\|_*$ given by $\|v\|_* = \|Av\|$ is also a norm.
+
+### Norms on polynomials {.unnumbered}
+
+We define similar norms for more general vector spaces.  For example, for the polynomial spaces $\calP_d$ on a finite interval (say $[-1,1]$), we have three common norms analogous to the norms on $\bbR^n$ and $\bbC^n$:
+
+Euclidean norm (aka 2-norm)
+: $\|p\|_2 = \sqrt{\int_{-1}^1 |p(x)|^2 \, dx}$
+
+Max norm (aka sup norm, $\infty$-norm)
+: $\|p\|_\infty = \max_{-1 \leq x \leq 1} |p(x)|$
+
+1-norm
+: $\|p\|_1 = \int_{-1}^1 |p(x)| \, dx$
+
+It is worth noting that these norms are *not* equivalent to applying the same norms to a vector of coefficients[^nonequiv-except-l2-legendre]!
+Unfortunately, the [Polynomials.jl](http://juliamath.github.io/Polynomials.jl/stable/) library does not implement these norms, though it is not so difficult to do so[^challenge-Pd-norms].
+
+[^nonequiv-except-l2-legendre]: There is a basis of polynomials (the *normalized Legendre polynomials*) for which applying the $L^2$ norm (the Euclidean norm described here) to a polynomial $p \in \calP_d$ is equivalent to applying the $L^2$ norm to the vector of coefficients.  But this is a special case.
+
+[^challenge-Pd-norms]: This is a good exercise for the interested student!
+
+### Consistency and induced norms {.unnumbered}
+
+Suppose $\calU$ and $\calV$ are normed vector spaces.
+A norm on $\mathcal{L}(\calU, \calV)$ is *consistent* with the norms on $\calU$ and $\calV$ (or *submultiplicative*) if for all $u \in \calU$ and $L \in \mathcal{L}(\calU, \calV)$,
+$$
+  \|Lu\|_{\mathcal V} \leq \|L\| \|u\|_{\calU}.
+$$
+The *induced* norm on $\mathcal{L}(\calU, \calV)$ is the tightest norm such that consistency holds
+$$
+  \|L\|_{\mathcal{L}(\calU,\calV)} =
+  \sup_{0 \neq u \in \calU} \frac{\|Lu\|_{\calV}}{\|u\|_{\calU}} =
+  \sup_{u \in \calU : \|u\|_{\calU} = 1} \|Lu\|_{\calV}.
+$$
+A particularly important special case is the induced norm on the dual space $\calV^* = \mathcal{L}(\calV, \bbF)$ where $\calV$ is a field over $\bbF$.
+
+For matrices in $\bbR^{m \times n}$ and $\bbC^{m \times n}$, the induced 1-norm and max-norm are simple to compute:
+\begin{align}
+  \|A\|_\infty &= \max_{i\in[m]} \sum_{j=1}^n |a_{ij}|; \\
+  \|A\|_1 &= \max_{j \in [n]} \sum_{i=1}^m |a_{ij}|.
+\end{align}
+The norm induced by the Euclidean norm on vector spaces (sometimes called the *spectral norm*) is rather more complicated to compute, and is given by the largest singular value of $A$.
+We describe this below.  Fortunately, the *Frobenius norm* is simple to compute and is consistent with the Euclidean norm, even if it is not induced by it.  The Frobenius norm is given by
+$$
+  \|A\|_F = \sqrt{\sum_{i,j} |a_{ij}|^2}.
+$$
+
+In Julia, the `norm` function computes a vector norm for a vector or for a matrix flattened into a vector.  For example:
+
+```{julia}
+let
+  A = [1.0 3.0;
+       2.0 4.0]
+  # These are equivalent to computing norms of x = [1; 2; 3; 4]
+  norm(A,Inf), norm(A,2), norm(A,1)
+end
+```
+
+These are all legitimate vector norms, but only `norm(A,2)` (which computes the Frobenius norm) even gives a consistent norm.  To compute induced norms, we need the `opnorm` function
+
+```{julia}
+let
+  A = [1.0 3.0;
+       2.0 4.0]
+  # These are equivalent to computing norms of x = [1; 2; 3; 4]
+  opnorm(A,Inf), opnorm(A,2), opnorm(A,1)
+end
+```
+
+## Inner products
+
+An *inner product* $\langle \cdot, \cdot \rangle$ is a function from two vectors into the real numbers (or complex numbers for complex vector space).
+It satisfies the following properties for all vectors $u, v, w$ and scalars $\alpha$
+
+Positive definiteness
+: $\langle v, v \rangle \geq 0$ and $\langle v, v \rangle = 0$ iff $v = 0$
+
+Linearity in the first slot
+: $\langle u+v, w \rangle = \langle u, w \rangle + \langle v, w \rangle$ and $\langle \alpha u, w \rangle = \alpha \langle u, w \rangle$
+
+Symmetry (or Hermitian-ness)
+: $\langle u, v \rangle = \overline{\langle v, u \rangle}$
+
+where the overbar in the last case corresponds to complex conjugation (for complex vector spaces).
+Every inner product defines a corresponding norm
+$$
+  \|v\| = \sqrt{\langle v, v \rangle}.
+$$
+The inner product and associated norm satisfy the *Cauchy-Schwarz* inequality
+$$
+  |\langle u, v \rangle| \leq \|u\| \|v\|.
+$$
+In the real case, we are also able to recover the inner product given the norm
+$$
+  \langle u, v \rangle = \frac{1}{2} (\|u+v\|^2 - \|u\|^2 - \|v\|^2).
+$$
+In the complex case, this formula only gives the real part of the inner product.
+
+A *Hilbert space* is an inner-product space that is complete under the associated norm (i.e. all Cauchy sequences converge).
+All finite-dimensional inner-product spaces are Hilbert spaces, as are the infinite-dimensional inner-product spaces that we find most interesting.
+If $\calV$ is a Hilbert space, the *Riesz representation theorem* tells us that every (continuous[^continuous-in-riesz]) linear functional $f \in \calV^*$ can be written in terms of an inner product with a unique $w \in \calV$:
+$$
+  f(v) = \langle v, w \rangle.
+$$
+The map gives us a linear isomorphism (in the real case) or antilinear isomorphism (in the complex case) between $\calV$ and $\calV^*$.
+
+[^continuous-in-riesz]: All linear functionals are continuous in a finite-dimensional vector space; this makes a difference only in infinite-dimensional spaces.
+
+Where norms give a notion of length, inner products also give a notion of angle.
+If $u$ and $v$ are nonzero vectors, the angle $\theta$ between them satisfies
+$$
+  \cos(\theta) = \frac{\langle u, v \rangle}{\|u\|\|v\|}.
+$$
+Apart from its geometric significance, this "cosine similarity" between vectors plays an important role in many data science and machine learning applications.
+
+### Inner products on concrete spaces {.unnumbered}
+
+The *standard inner product* on $\bbC^n$ (also called the *dot product*) is
+$$
+  \langle x, y \rangle = y^* x = \sum_{j=1}^n x_j \bar{y}_j.
+$$
+In this case, the Riesz map from the column vector $y$ to the functional (row vector) $y^*$ is just given by the conjugate transpose operation.
+
+For the standard inner product, we have not only the Cauchy-Schwarz inequality, but also the very useful inequality[^holder-special-case]
+$$
+  | \langle x, y \rangle | \leq \|x\|_1 \|y\|_\infty
+$$
+But the standard inner product is not the only inner product, just as the standard Euclidean norm is not the only Euclidean norm!  In general, if $M \in \bbC^{n \times n}$ is Hermitian (or symmetric in the real case) and positive definite (i.e. $x^* M x \geq 0$ with equality iff $x = 0$), then
+$$
+  \langle x, y \rangle_M = y^* M x
+$$
+is an inner product.  In fact, all possible inner products on $\bbC^m$ can be written in this way.  Alternately, every symmetric positive definite matrix may be written in many ways as $M = A^* A$, giving us a representation in terms of the standard inner product composed with a linear transformation:
+$$
+  \langle x, y \rangle_M = (Ax) \cdot (Ay).
+$$
+
+[^holder-special-case]: This is a special case of the Hölder inequality, which states that $|\langle x, y \rangle| \leq \|x\|_p \|y\|_q$ for the so-called $\ell^p$ norms when $1/p + 1/q = 1$.
+
+### Inner products on polynomials {.unnumbered}
+
+As before, it is useful to consider inner products on $\calP_d$ as well as on $\bbR^n$ and $\bbC^n$.
+The standard inner product ($L^2$ inner product) on $\calP_d$ over an interval $[-1,1]$, for example, is given by
+$$
+  \langle p, q \rangle = \int_{-1}^1 p(x) \overline{q(x)} \, dx.
+$$
+
+In an inner product space, two vectors are said to be orthogonal if their inner product is zero.
+A set of vectors are *orthonormal* if they are mutually orthogonal and each vector has unit length in the Euclidean norm.
+Orthonormal bases are particularly convenient.
+In $\bbR^n$ (or $\bbC^n$) with the standard inner product, the standard basis $\begin{bmatrix} e_1 & e_2 & \ldots e_n \end{bmatrix}$ (where $e_k$ is the vector of all zeros except for a one in the $k$th position) is orthonormal.
+In $\calP_d$ with the $L^2$ inner product on $[-1,1]$, the *Legendre polynomials* form orthogonal bases; these are given by
+\begin{align}
+  P_0(x) &= 1 \\
+  P_1(x) &= x \\
+  (n+1) P_{n+1}(x) &= (2n+1)x P_n(x) - n P_{n-1}(x).
+\end{align}
+The Legendre polynomials have Euclidean length of
+$$
+  \|P_n(x)\| = \sqrt{\frac{2}{2n+1}};
+$$
+the *normalized Legendre polynomials* are scaled to unit length, and so form an orthonormal basis
+$$
+  Q_n(x) = \sqrt{\frac{2n+1}{2}} P_n(x).
+$$
+
+### Gram-Schmidt {.unnumbered}
+
+Let $X$ be a basis quasi-matrix for an $n$-dimensional space $\calV$.
+The *Gram-Schmidt orthonormalization* process gives us a way of constructing an orthonormal basis $Q$ for $\calV$ such that for all $k \leq n$
+$$
+  \operatorname{span}(\{x_1, \ldots, x_k\}) = \operatorname{span}(\{q_1, \ldots, q_k\}).
+$$
+The classical construction is usually written as
+\begin{align}
+  \tilde{q}_k &= x_k - \sum_{j=1}^{k-1} q_j \langle x_k, q_j \rangle \\
+  q_k &= \tilde{q}_k / \|\tilde{q}_k\|.
+\end{align}
+Let $r_{jk} = \langle x_k, q_j \rangle$ for $j < k$ and $r_{kk} = \|\tilde{u}_k\|$; then the Gram-Schimdt construction can be re-interpreted as a factorization of the quasi-matrix $X$:
+$$
+  X = Q R
+$$
+where $R$ is the upper triangular matrix with coefficients computed in the Gram-Schimdt construction.
+This factorization is sometimes called the QR factorization of the (quasi)matrix $X$.
+
+For numerical comptuation, the classical Gram-Schmidt process is rarely used.  However the QR factorization, computed using different algorithms, is broadly useful.
+
+## Maps and matrices
+
+There are a variety of types of maps that are of interest in linear algebra, all of which have matrix representations under appropriate choices of bases.  These include
+
+- *Linear maps* between two different vector spaces $\calU$ and $\calV$.
+- *Linear operators* mapping a vector space $\calV$ to itself.
+- *Bilinear forms* mapping $\calU \times \calV \rightarrow \bbF$, which are linear in each argument independently.  These are most frequently used when $\bbF = \bbR$.  An important special case is *symmetric* bilinear forms $a : \calV \times \calV \rightarrow \bbF$ such that $a(u, v) = a(v, u)$.
+- *Sesquilinear forms* mapping $\calU \times \calV \rightarrow \bbC$ that are linear in the first argument and antilinear in the second argument.  An important special case is *Hermitian* forms $a : \calV \times \calV \rightarrow \bbC$ such that $a(u,v) = \overline{a(v,u)}$.
+- *Quadratic forms* mapping $\calV \rightarrow \bbR$.  These are homogeneous of degree 2, i.e. if $\phi : \calV \rightarrow \bbR$ is a quadratic form, then $\phi(\alpha v) = |\alpha|^2 \phi(v)$.
+
+Each of these types of linear algebraic objects can be represented as a matrix via a choice of basis.  Suppose $U$ and $V$ are basis quasi-matrices for the vector spaces $\calU$ and $\calV$ with $u = Uc$ and $v = Vd$.  Then we have the following matrix representations
+
+- *Linear maps*: If $L : \calU \rightarrow \calV$ and $v = Lu$ then $d = Ac$ where $A = V^{-1} L U$.
+- *Linear operators*: If $L : \calV \rightarrow \calV$, we have only a single basis, and the matrix representation is $A = V^{-1} L V$.
+- *Bilinear forms*: If $a : \calU \times \calV$ is a bilinear form, then $a(u,v) = d^T A c$ where the matrix element $a_{ij} = a(u_j, v_i)$ is an evaluation of the form on a pair of basis vectors.  For symmetric bilinear forms, the matrix representation is also symmetric (i.e. $A = A^T$).
+- *Sesquilinear forms*: If $a : \calU \times \calV$ is a bilinear form, then $a(u,v) = d^* A c$ where the matrix element $a_{ij} = a(u_j, v_i)$ is an evaluation of the form on a pair of basis vectors.  For Hermitian bilinear forms, the matrix representation is also Hermitian (i.e. $A=A^*$).
+- *Quadratic forms*: If $\phi : \calV \rightarrow \bbR$ is a quadratic form, then $\phi(v) = d^* A d$.  The matrix $A$ is Hermitian.  The real part of $a_{jk}$ is $(\phi(v_j + v_k) - \phi(v_j) - \phi(v_k))/2$ and the imaginary part is $(\phi(v_j - i v_k) - \phi(v_j) - \phi(v_k))/2$.
+
+Matrix representations of the same linear operator with respect to different bases are said to be *similar*.  Changing from the basis $V$ to a basis $VX$ (where $X$ is invertible) transforms the matrix representation $A$ to $X^{-1} A X$; this is called a *similarity transformation*.  Similar matrices have the same eigenvalues, because the eigenvalues are a basis-independent property of linear operators.
+
+Matrix representations of the same quadratic form (or Hermitian sesquilinear form) with respect to different bases are said to be *congruent*.  Changing from the basis $V$ to a basis $VX$ (where $X$ again is invertible) transforms the matrix representation $A$ to $X^* A X$; this is called a *congruence transformation*.  Congruent matrices share a property called *Sylvester's inertia*, as this is a basis-independent property of quadratic forms.  We will have more to say about this shortly in our discussion of canonical forms.
+
+## Block matrices
+
+Now suppose that we are interested in a linear mapping $L : \calU \rightarrow \calV$ where the spaces have basis quasi-matrices $U$ and $V$, respectively.  Now partition the $U$ and $V$ bases into disjoint sets of columns, written as
+\begin{align}
+  U &= \begin{bmatrix} U_1 & U_2 & \ldots & U_q \end{bmatrix} \\
+  V &= \begin{bmatrix} V_1 & V_2 & \ldots & V_q \end{bmatrix}.
+\end{align}
+The partitioning of the bases corresponds to a partitioning of the two spaces as a direct sum of subspaces
+\begin{align}
+  \calU &= \calU_1 \oplus \calU_2 \oplus \ldots \oplus \calU_q \\
+  \calV &= \calV_1 \oplus \calV_2 \oplus \ldots \oplus \calV_p
+\end{align}
+
+If $A = V^{-1} L U$ is the matrix representing $L$ with respect to the $U$ and $V$ bases, then together with the partitioning of the bases comes a partitioning of $A$ into blocks:
+\begin{align}
+  A = \begin{bmatrix} 
+    A_{11} & A_{12} & \ldots & A_{1q} \\
+    A_{21} & A_{22} & \ldots & A_{2q} \\
+    \vdots & \vdots & \ddots & \vdots \\
+    A_{p1} & A_{p2} & \ldots & A_{pq}
+  \end{bmatrix}
+\end{align}
+where each submatrix $A_{ij}$ corresponds to the "piece" of the mapping $L$ from the $\calU_j$ contribution to $u$ to the $\calV_i$ contribution to $Lu$.
+
+We can similarly partition matrices associated with other types of maps.
+In the case of operators and quadratic forms (or symmetric or Hermitian forms), sensible partitionings of the associated matrices generally yield diagonal blocks.
+
+## The canonical forms
+
+We start with abstract vector spaces and functions on them, but we compute with bases and matrices.
+The matrix associated with a linear algebra function always depends on the choice of basis, and so we ask: what basis would make the matrix as simple as possible?
+This simplest possible matrix representation is known as a *canonical form*.
+For computational purposes, we often want to restrict ourselves to orthonormal bases;
+therefore, for each type of function, we list two flavors of canonical forms -- those associated with a general choice of basis and those associated with orthonormal bases.
+If we start with a matrix representation of some function on concrete vector spaces, we can also think of the canonical forms as *matrix factorizations*.
+
+### Linear maps {.unnumbered}
+
+Suppose $L : \calV \rightarrow \calU$ is a linear map between two different vector spaces with $\operatorname{dim}(\calV) = n$ and $\operatorname{dim}(\calU) = m$.
+
+#### General bases {.unnumbered}
+
+Suppose we decompose $\calU = \calU_1 \oplus \calU_2$ where $\calU_1 = \operatorname{range}(L)$, and we decompose $\calV = \calV_1 \oplus \calV_2$ where $\calV_2 = \operatorname{null}(L)$.  Then for any associated choice of bases, we have a block matrix representation of the form
+$$
+  \begin{bmatrix} A_{11} & 0 \\ 0 & 0 \end{bmatrix}.
+$$
+where $A_{11} \in \bbC^{r \times r}$ is an invertible matrix.
+For appropriate choices of bases, we have the block matrix representation
+$$
+  \begin{bmatrix} I_{r \times r} & 0 \\ 0 & 0 \end{bmatrix}.
+$$
+That is, the canonical for a linear map between two different spaces can be described just by one number: the rank $r$ (from which we can also determine the null space dimension $n-r$).  We can also write this as the (quasi)matrix factorization
+$$
+  L = \begin{bmatrix} U_1 & U_2 \end{bmatrix} \begin{bmatrix} I & 0 \\ 0 & 0 \end{bmatrix} \begin{bmatrix} V_1 & V_2 \end{bmatrix}^{-1}
+$$
+
+#### Orthonormal bases {.unnumbered}
+
+If we restrict ourselves to orthonormal bases, we can still get the same general block form by decomposing $U$ into the range space and its orthogonal complement and decomposing $V$ into the null space and its orthogonal complement.  However, we cannot get all the way to a representation of the leading block as an identity matrix -- the best we can do is to get to a diagonal matrix with positive entries.  Using the fact that the inverse of a unitary matrix is given by its conjugate transpose (or the Riesz map of the columns, in the more general case), we have the factorization
+$$
+  L =
+  \begin{bmatrix} U_1 & U_2 \end{bmatrix}
+  \begin{bmatrix} \Sigma_{11} & 0 \\ 0 & 0 \end{bmatrix}
+  \begin{bmatrix} V_1 & V_2 \end{bmatrix}^* = U_1 \Sigma_{11} V_1^*,
+$$
+where the $r$-by-$r$ matrix $\Sigma_{11}$ has diagonal entries $\sigma_1 \geq \sigma_2 \geq \ldots \geq \sigma_r > 0$.
+The diagonals of the matrix are known as the *singular values* of the map, with associated bases of *singular vectors*.
+
+### Linear operators {.unnumbered}
+
+Now suppose $L : \calV \rightarrow \calV$.  This case is different from the linear map because we only get to choose *one* basis, rather than two.
+
+#### General bases {.unnumbered}
+
+Over the complex numbers, we can choose a basis $X$ that usually renders the matrix for $L$ diagonal (and gives us something nearly diagonal otherwise):
+$$
+  L = X J X^{-1}, \quad 
+  J = \begin{bmatrix} 
+  J_{\lambda_1} & & & \\
+  & J_{\lambda_2} & & \\
+  & & J_{\lambda_3} & \\
+  & & & \ddots
+  \end{bmatrix},
+$$
+where the submatrices $J_{\lambda}$ are *Jordan blocks* of the form
+$$
+  J_{\lambda} = 
+  \begin{bmatrix} 
+    \lambda & 1 & & & \\
+    & \lambda & 1 & & \\
+    & & \ddots & \ddots & \\
+    & & & \lambda & 1 \\
+    & & & & \lambda
+  \end{bmatrix}.
+$$
+The columns of the basis $X$ are *eigenvectors* or *generalized eigenvectors*.
+This is known as the *Jordan canonical form*.
+Most matrices are *diagonalizable*, so that all the Jordan blocks are 1-by-1 and we have a complete basis of eigenvectors.
+
+#### Orthonormal bases {.unnumbered}
+
+Over the complex numbers, we can choose an orthonormal basis $U$ that gives us an upper triangular matrix
+$$
+  L = U T U^*,
+$$
+where the diagonal elements $t_{jj}$ are eigenvalues of $L$.
+This is known as the (complex) *Schur canonical form* of $L$.
+In this basis, the columns no longer correspond to eigenvectors.
+However, each prefix of columns $u_1, \ldots u_k$ spans an *invariant subspace* of $L$; that is $L$ maps this space into itself.
+
+If we restrict ourselves to the reals, we have the *real Schur form* of $L$.  This is close to the complex Schur form except that we insist on real basis vectors and $T$ is *block* upper triangular, with some 2-by-2 blocks corresponding to complex conjugate pairs of eigenvalues.
+
+### Quadratic forms {.unnumbered}
+
+Now suppose $\phi : \calV \rightarrow \bbR$ is a quadratic form.
+
+#### General bases {.unnumbered}
+
+For every quadratic form, there is a basis which we can write in partitioned form as
+$$
+  V = \begin{bmatrix} V_+ & V_- & V_0 \end{bmatrix}
+$$
+such that we have the block matrix representation
+$$
+  \phi(Vc) =
+  \begin{bmatrix} c_+ \\ c_- \\ c_0 \end{bmatrix}^* 
+  \begin{bmatrix} I & & \\ & -I & \\ & & 0 \end{bmatrix}
+  \begin{bmatrix} c_+ \\ c_- \\ c_0 \end{bmatrix}
+$$
+Let $\nu_+$, $\nu_-$, and $\nu_0$ be the number of columns in the three parts of the basis.
+The triple $\nu = (\nu_+, \nu_-, \nu_0)$ is called *Sylvester's inertia* (or sometimes the *metric signature*) for the quadratic form, and characterizes the form in much the same way that the rank characterizes a linear map.
+Geometrically, Sylvester's inertia describes the number of directions of positive curvature, negative curvature, and zero curvature for the bowl or saddle described by the quadratic form.
+A quadratic form is *positive definite* if $\nu_+ = n$, *positive semi-definite* if $\nu_+ + \nu_0 = n$, *negative definite* if $\nu_- = n$, and *negative semi-definite* if $\nu- + \nu_0 = n$.
+A quadratic form with both $\nu_+$ and $\nu-$ nonzero is *strongly indefinite* (also sometimes called a *saddle*).
+
+If $A$ is the representation of $\phi$ under some arbitrary basis $W$ and $W = VX$, we have the factorization
+$$
+  A = X^* \begin{bmatrix} I & & \\ & -I & \\ & & 0 \end{bmatrix} X;
+$$
+in this case, we would say $A$ is *congruent* to the diagonal matrix described by the inertia.
+
+#### Orthonormal bases {.unnumbered}
+
+If we restrict our attention to orthonormal bases, the canonical form of the matrix representation is a simple real diagonal matrix:
+$$
+  \phi(Vc) = c^* \Lambda c, \quad \Lambda = \begin{bmatrix} \lambda_1 \\ & \lambda_2 \\ & & \ddots \\ & & & \lambda_n \end{bmatrix}
+$$
+where the eigenvalues $\lambda_j$ are typically listed in descending order.
+The number of positive, negative, and zero eigenvalues is given by Sylvester's inertia.
+
+If $A$ is the representation of $\phi$ under some orthonormal basis $W$ and $W = V Q^*$ (where $Q$ is a unitary matrix, i.e. $Q^* Q = I$), then we have the factorization
+$$
+  A = Q \Lambda Q^*;
+$$
+in this case, we would say $A$ is related to $\Lambda$ by a *unitary congruence*.
+A unitary congruence is also a similarity transform, hinting at a rich relation between the interpretation of the symmetric eigenvalue problem in terms of operators or in terms of quadratic forms.
+
+### Other functions {.unnumbered}
+
+What of bilinear and sesquilinear forms?
+For these functions, the appropriate canonical forms are essentially the same as those that we have already described.
+In the case of real symmetric bilinear or complex Hermitian sesquilinear forms, there is an associated quadratic form $\phi(v) = a(v,v)$, and the canonical form of the bilinear/sesquilinear form is the same as the canonical form for the quadratic form.
+In the case of bilinear or sesquilinear forms on two different spaces, the appropriate canonical form is the same as for a linear map.

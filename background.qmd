@@ -1,0 +1,11 @@
+# Background Plus a Bit
+
+For this class, I assume you know the fundamentals of linear algebra, multivariable calculus, and probability.
+You should also know how to write and debug simple programs in Julia[^julia-matlab-octave], or know enough programming to pick it up.
+But there are some things you may never have forgotten that you will need for this class, and there are other things that you might not have learned.
+This section will describe some of these things.
+
+[^julia-matlab-octave]: The examples in this book will be in [Julia](https://julialang.org/).  If you are unfamiliar with Julia but familiar with [MATLAB](https://www.mathworks.com/products/matlab.html) or [Octave](https://octave.org/), you should be able to read most of the code.  The syntax may be slightly more mysterious if you primarily program in some other language, but I will generally assume that you have the computational maturity to figure things out.
+
+    (People often refer to "mathematical maturity" and mean enough facility with mathematical thinking
+    that a student can follow somewhat advanced material and learn any missing background with minimal assistance.  I am using "computational maturity" here to mean the analogous ability to fill in missing background when it comes to coding.)

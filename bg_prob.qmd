@@ -1,0 +1,444 @@
+# Probability Background
+
+::: {.content-hidden unless-format="html"}
+{{< include _common.tex >}}
+:::
+
+::: {.hidden}
+```{julia}
+using Statistics
+```
+:::
+
+Monte Carlo methods involve computations done with the help of random
+numbers.  To reason about Monte Carlo methods, we need a
+little background in probability theory.  I assume that you have seen
+some probability theory before, and that this is just a reminder.
+If you need a more thorough refresher, the book by Ross [-@ross-2014] is a
+popular introductory text that covers discrete and continuous
+problems, but not more general probability measures. Another good
+undergraduate text by Chung and AitSahlia [-@chung-aitsahlia-2003]
+includes a little bit of measure theory.  Good graduate texts include
+the books by Billingsley [-@billingsley-1995] and by Breiman
+[-@breiman-1992].  If you want a reminder that is more thorough than
+the one we give here, but less than a full textbook, the treatment in
+[@deisenroth-faisal-ong-2020] is a good starting point.
+
+## Probability basics
+
+When we do an experiment, there are a variety of possible outcomes
+that could result.  These outcomes are described in terms of a
+*sample space* $S$.  An *event* is a set $A \subset S$.[^borel]
+A probability measure is a function $P$ mapping events to non-negative real
+numbers such that $P(S) = 1$ and $P(\cup_{i=1}^\infty A_i) =
+\sum_{i=1}^\infty P(A_i)$ for any countable collection of pairwise disjoint
+events $A_i$.
+
+[^borel]: When the sample space is uncountable, we cannot generally 
+    define probabilities for arbitrary subsets of $S$. We therefore
+    require events belong to a *sigma algebra* (also called a *Borel
+    field*) $\mathcal{B}$; this class of sets must contain the empty set
+    and be closed under complement and countable union. A set in the
+    sigma algebra is called a *measurable* set.
+
+Rather than work directly with the sample space, we usually consider
+*random variables*.  A random variable $X$ is a function on $S$.[^rv-measurable]
+In the name of concise notation, we often suppress the argument to
+$X$, writing expressions like $\{X \in A\}$ to denote $\{s \in S :
+X(s) \in A\}$.
+
+[^rv-measurable]: A random variable $X : S \rightarrow T$ must be
+    *measurable*; that is, if $A$ is a measurable set in $T$, then
+    $\{X \in A\} = \{s \in S : X(s) \in A\}$ must also be measurable.
+
+For a discrete random variable, we write
+$$
+  P\{X \in A\} = \sum_{x \in A} p_X(x)
+$$
+where $p_X$ is a *probability mass function* (pmf) which is everywhere
+between zero and one and which sums to one when the sum is taken over
+all possible outcomes.  Similarly, for a continuous random variable[^abs-continuous],
+we write
+$$
+  P\{X \in A\} = \int_{A} f_X(x) \, dx
+$$
+where $f_X(x)$ is a *probability density function* (pdf).
+When the outcomes are integers or real numbers, we sometimes also care about
+the *cumulative distribution function* (cdf)
+$$
+  F_X(x) = P\{X \leq x\}
+$$
+which we can get by summing the mass function or integrating the
+density function.  The cdf is a monotonically increasing functions
+with limiting values $\lim_{x \rightarrow -\infty} F_X(x) = 0$ and
+$\lim_{x \rightarrow \infty} F_X(x) = 1$.
+
+[^abs-continuous]: In order to have a probability density function, we
+    technically want an *absolutely continuous* random variable.
+
+The *expected value* of a function $g$ of a random variable $X$ is
+$$
+  E[X] = \int_{\Omega} g(x) f_X(x) \, dx;
+$$
+in the discrete case, the integral is replaced by a sum.  The
+variance of $X$ is
+$$
+  \Var[X] = E[(X-E[X])^2] = E[X^2]-E[X]^2.
+$$
+The standard deviation is the square root of the variance, and we can
+think of it as a measure of how far, on average, $X$ is from its
+expected value.
+
+Random variables $X$ and $Y$ are *independent* if for general choices
+of events $A$ and $B$ we have $P(\{ X \in A \} \cap \{ Y \in B \}) =
+P\{X \in A\} \cdot P\{Y \in B\}$.  In simple Monte Carlo calculations,
+we typically run repeated experiments that are *independent and
+identically distributed* (i.i.d.).  If $X_1, X_2, \ldots, X_N$ are
+independently drawn from the same distribution (with finite mean and
+variance), then by the central limit theorem, the sample mean
+$$
+  \bar{X} = \frac{1}{N} \sum_{j=1}^N X_j
+$$
+is a random variable that is approximately normal (Gaussian) with mean
+$E[X]$ and variance $\Var[X]/\sqrt{N}$.
+
+## The Monte Carlo idea
+
+Monte Carlo methods use random numbers to compute something that is
+not random.  In the abstract, we write some quantity of interest $A$ as
+$$
+  A = E_f[V(X)],
+$$
+where $X$ is a collection of random variables whose joint distribution
+is $f$ (sometimes written $X \sim f$) and $V(x)$ is some quantity
+determined by $X$.  A Monte Carlo code generates many samples $X_k$,
+$k = 1, \ldots, N$, from the distribution $f$, and then computes the
+approximate answer
+$$
+  A \approx \hat{A}_N = \frac{1}{N} \sum_{k=1}^N V(X_k).
+$$
+If the samples $X_k$ are independent, the error is roughly
+$\sigma/\sqrt{N}$, where $\sigma^2 = \operatorname{var}_f(V(X))$
+is the variance of the random variable $V(X)$.  If we don't know
+the variance of $V(X)$ analytically (which is typically the case),
+we can use the estimate
+$$
+  \hat{\sigma}^2_N = \frac{1}{N-1} \sum_{k=1}^N (V(X_k)-A)^2.
+$$
+Sometimes we're sloppy and divide by $N$; if $N$ is small enough that
+this makes a significant data, we ideally should run more experiments!
+When we approximate $A$ by $\hat{A}_N$, we call $\hat{\sigma}_N$
+an "error bar", since it describes a measure of the statistical
+error in our problem (the radius of a symmetric
+67% confidence interval).  The error bars are not the same as
+error *bounds*, of course, but they are useful for reasoning
+about the order of magnitude of the errors we expect to see.
+
+Because statistical error is $O(1/\sqrt{N})$, it tends to be very
+expensive to get high accuracy with Monte Carlo methods.  For some
+problems, though, particularly those in high dimensions, Monte Carlo
+methods are the most practical choice.  The basic idea of Monte Carlo
+is simple, if expensive; much of the cleverness in Monte Carlo methods
+goes into *variance reduction*, which at least reduces the
+constant in the $O(1/\sqrt{N})$ expression.  The good side of
+statistical error is that it is usually at least possible to estimate
+its order of magnitude (via error bars).
+
+## Examples
+
+Monte Carlo methods have relatively low accuracy compared to deterministic
+methods, but they are particularly useful in a few cases:
+
+1. Some problems are naturally probabilistic, and a Monte Carlo method may
+   be an almost-direct translation of the problem statement.  If we don't
+   mind low accuracy, this can be a very effective way to get a feel
+   for the answer before diving into a more exact calculation (which we
+   might have to spend more time debugging).  The standard advice is to
+   only use Monte Carlo for things that cannot be well managed by deterministic
+   methods; this sort of exploratory computation might be an exception.
+2. The cost of deterministic methods often grows *exponentially* with
+   the dimension of the ambient space.  This causes a problem when we're
+   interested in even moderately high dimensions.  For computing integrals
+   in high-dimensional spaces (including the sort of position-and-direction
+   coordinates we need to describe particles in scattering problems like
+   the one in HW 3), a Monte Carlo method is often appropriate.
+3. Sometimes we are driven by data, and the data that we have is too huge
+   to process all at once.  Sampling the data by Monte Carlo methods can
+   be a very effective approach in this case for the same reason it is
+   effective for high-dimensional problems: the cost depends on the number
+   of samples we draw, and not on the size or dimension of the underlying
+   thing from which our samples are drawn.
+
+## Random number generation
+
+In order to run Monte Carlo simulations, we need a source of
+pseudo-random numbers.  One could teach an entire class on how to
+produce pseudo-random number generators, but we will simply state that
+it is a tricky business and you should use a well-designed library
+routine for your day-to-day draws of random bits or of numbers that
+are uniformly distributed in the interval $[0,1]$.  In Julia, you can
+use `rand` to get such uniformly distributed random samples (and
+`randn` to get samples from a standard normal distribution).  For our
+purposes, we simply need to know how to turn such uniform sampling
+procedures into methods to sample from other distributions. I know a
+handful of tricks for deriving new samplers; let's investigate them by
+example.
+
+### Bernoulli random variables
+
+A Bernoulli random variable generates 1 (success) with probability $p$
+and 0 (failure) with probability $1-p$.  In the problem du jour, we
+implicitly assumed that each question was a Bernoulli trial with
+$p = 0.8$.  Generating a Bernoulli trial from a uniform sampler
+is relatively simple; in Julia, we might write
+```{julia}
+bernoulli(p) = if rand() < p 1 else 0 end
+```
+Note that $P\{U < p\} = \int_0^p 1 \, du = p$, so this sampler certainly
+has the right properties.  Also notice that we can compute a vector or
+matrix of Bernoulli trials simultaneously with one call to `rand`,
+where the arguments give the output size.
+
+### Exponential random variables
+
+An exponential random variable with rate parameter $\lambda$ has
+the density function
+$$
+  f(x; \lambda) = \lambda e^{-\lambda x}, \quad x \geq 0
+$$
+and the cumulative distribution function
+$$
+  F(x; \lambda) = 1-e^{-\lambda x}.
+$$
+Now, suppose that for a uniform sample $U$ we generate
+$X$ to satisfy $F(X; \lambda) = U$, i.e.
+$$
+  X = -\frac{1}{\lambda} \log(1-U).
+$$
+Then
+$$
+  P\{X \leq x\} = P\{F(X;\lambda) \leq F(x;\lambda)\}
+                = P\{U \leq F(x;\lambda)\} = F(x; \lambda).
+$$
+This inverse transformation trick works whenever we have a simple
+way to compute a cumulative distribution function.  In this particular
+case, we might also note that $U$ and $1-U$ have the same
+distribution, so we could also use
+$$
+  X' = -\frac{1}{\lambda} \log(U).
+$$
+
+```{julia}
+rand_exp(λ) = -log(rand())/λ
+```
+
+### Sampling from an empirical distribution
+
+Suppose we have a histogram of results from some large number of
+real-world experiments.  If the outcomes of the experiments are
+integers in the range from $1$ to $m$, we can define a probability
+mass function where $p(j)$ is the fraction of the experiments that had
+outcome $j$.  There is a corresponding cumulative distribution function
+$F(j) = \sum_{i=1}^j p(j)$ that goes from $F(0) = 0$ to $F(m) = 1$.
+To draw a sample from this distribution, we would again use the inverse
+transformation trick: draw $U$ uniform between $0$ and $1$, then choose
+the smallest $j$ such that $F(j) > U$.
+
+### Sampling from the unit disk
+
+Suppose we want to draw $(X,Y)$ uniformly at random from the interior
+of the unit circle.  One way to do this is with polar coordinates: if
+$U_1$ and $U_2$ are uniform on $(0,1)$, we can generate
+$\Theta = 2 \pi U_1$ and $R = \sqrt{U_2}$ (the cdf for $R$ should be
+$F_R(r) = r^2$ on $[0,1)$, so we can use the inverse transformation
+trick from above).  Then we could compute
+$(X,Y) = R (\sin \Theta, \cos \Theta)$.
+But suppose we didn't know this, or suppose that we're thinking of the disk
+as a proxy for some more complicated set sitting inside the unit square.
+What other tactics could we use?
+
+One simple idea is *rejection sampling*.  The basic idea is
+
+1. Draw a sample from an easy distribution $g$.  In this case, we might use
+   the uniform distribution on $[-1,1]^2$ (i.e. $g(x,y) = 1/4$ on $[-1,1]^2$
+   and zero elsewhere).
+2. Accept the sample with probability that is a function of the sample values.
+   In this case, we have
+   $$
+    p(x,y) = \begin{cases}
+      1, & x^2+y^2 < 1 \\
+      0, & \mbox{otherwise}.
+    \end{cases}
+   $$
+   In this case, we accept with probability one if $X^2+Y^2 < 1$
+   and with probability zero otherwise.
+
+We then keep repeating until acceptance.  The probability density associated
+with the accepted values is then
+$$
+  f(x,y) = \frac{1}{Z} g(x,y) p(x,y)
+$$
+where $Z$ is some normalization constant chosen so that the acceptance
+probability is one.  In our case, this gives us a density that is a nonzero
+constant on the circle and zero elsewhere, which is what we wanted.
+
+A more geometric way of seeing rejection sampling is that we fit some
+shape that completely surrounds the graph of our density function (in
+this case, that shape is a three-dimensional box).  We then draw
+uniformly at random from within that shape, and discard the samples
+that do not fall under the graph of the density function.  The
+probability that we succeed in any given trial is equal to the
+fraction of the area inside the shape that lies underneath the graph
+of the density function.
+
+### Distribution with an exponential tail
+
+Let's look at another example of rejection sampling.  Suppose I wanted
+to sample from $f(x) = C^{-1} g(x) e^{-x}$ on $[0,\infty)$,
+where $C$ is some (possibly unknown) normalization constant
+and $0 < g(x) < G$.  Then I could compute samples from $f$ using the
+following procedure:
+```{julia}
+function sample_exp_tail(g, gmax)
+    p = 0.0
+    X = 0.0
+    while rand() > p
+        X = -log(rand())
+        p = g(x)/G
+    end
+    X
+end
+```
+The probability of success in this problem is the ratio of the area
+under the histogram for $f$ to the area under $G e^{-x}$, or $1/G$.
+The expected number of rounds until success is therefore $G$.
+
+## Variance reduction
+
+The problem above is a simple example of Monte Carlo integration.
+We now want to see how to make this simple example more efficient
+by reducing the variance of the estimator.  We will approach this
+in a few different ways.
+
+### Importance sampling
+
+Let us consider the computation
+$$
+  \sqrt{2\pi} = 2 \int_{0}^\infty \exp(-x^2/2) \, dx.
+$$
+Using the idea of the problem du jour, we could estimate $\sqrt{2\pi}$
+by drawing uniform samples on $[0,L]$ for $L$ large enough.  But this
+estimator has rather high variance, and the variance gets larger the
+larger $L$ is.  This is intuitive in that most of the sample points
+don't really matter to the computation, since $\exp(-x^2/2)$ decays
+very quickly away from zero.
+
+The integrand $\exp(-x^2/2)$ is largest near the origin, so we get the
+most contribution to our integral when we have samples near zero.
+Therefore, it makes sense to use a method that samples more frequently
+near the origin, rather than sampling uniformly over some large
+range of $x$ values
+$$
+  \sqrt{2\pi} = 2\int_{0}^\infty \frac{\exp(-x^2/2)}{\exp(-x)} \exp(-x) \, dx
+              = 2E[\exp(-X^2/2)/\exp(-X)]
+$$
+where $X$ is an exponential random variable.
+
+```{julia}
+function zmean2(N=1000)
+    Y = -log.(rand(N))
+    fY = exp.(-Y.^2/2)
+    gY = exp.(-Y)/2
+    lY = fY./gY
+    mean(lY), std(lY)/sqrt(N)
+end
+
+μ, σ = zmean2()
+μ-sqrt(2π), σ
+```
+
+### Control variates
+
+I want to compute the expectation of $l(x) = \exp(x-x^2/2)$, but
+perhaps I've decided its too hard.  But I know that most of the interesting
+behavior is near the origin, so perhaps I can approximate $l(x)$ by a
+polynomial over some interval close to zero.  Let's try just interpolating
+by a quadratic at $x = 0$, $x = 1$, and $x = 2$, and discarding everything
+past $x = 2$:
+$$
+  h(x) = \begin{cases}
+           \sqrt{e}-(\sqrt{e}-1)(x-1)^2, & x \in [0,2] \\
+           0,                            & \mbox{otherwise}
+         \end{cases}.
+$$
+While $h(X)$ is not identical to $l(X)$, the two random variables surely
+are correlated.  Furthermore, we can compute $E[h(X)]$ analytically;
+a somewhat tedious calculus exercise yields
+$$
+  E[h(X)] = \sqrt{e}(1-e^{-2}) - (\sqrt{e}-1)(1-5e^{-2}).
+$$
+The fact that $h(X)$ and $l(X)$ should be correlated, together with the
+fact that we can compute $E[h(X)]$ in closed form, makes $h(X)$ an
+ideal candidate to serve as a *control variate* with which we can
+construct a better estimator, as we shall now see.
+
+First, note that
+$$
+  E[l(X)] = E[l(X)-ch(X)]+cE[h(X)].
+$$
+So $\hat{l}_c(X) = l(X)-ch(X)+cE[h(X)]$ has the same expected value that
+$l(X)$ does; but
+$$
+  \Var[\hat{l}_c(X)] = \Var[l(X)] -2c \Cov[l(X),h(X)] + c^2 \Var[h(X)].
+$$
+If we choose $c_* = \Cov[l(X),h(X)]/\Var[h(X)]$, we have
+\begin{align*}
+  \Var[\hat{l}_{c_*}(X)] = \Var[l(X)] \left( 1-\corr[l(X),h(X)]^2 \right).
+\end{align*}
+If $l(X)$ and $h(X)$ are highly correlated, then $\hat{l}_{c_*}(X)$ may have
+a much lower variance than $l(X)$.  Of course, computing the covariance
+analytically is hard, but we can always do it numerically.
+
+```{julia}
+function zmean3(N=1000)
+    e   = exp(1.0)
+    Y   = -log.(rand(N))
+    fY  = exp.(-Y.^2/2)
+    gY  = exp.(-Y)/2
+    lY  = fY./gY
+    hY  = (sqrt(e).-(sqrt(e)-1)*(Y.-1.0).^2) .* (Y.<2)
+    EhY = (sqrt(e)*(1-e^-2) - (sqrt(e)-1)*(1-5*e^-2))
+    cs  = -sum((lY.-mean(lY)) .* (hY.-EhY))/sum((hY.-EhY).^2)
+    W   = lY + cs*(hY.-EhY)
+    mean(W), std(W)/sqrt(N)
+end
+
+μ, σ = zmean3()
+μ-sqrt(2π), σ
+```
+
+### Antithetic variates
+
+Now let's turn to the problem of computing $\pi/4$ by throwing darts
+at $[0,1]^2$ and seeing what fraction lie inside the unit circle.
+Note that if $(X_i,Y_i)$ is a uniform random sample from the square,
+then $(1-X_i,1-Y_i)$ is a correlated sample.  It turns out that if
+$\phi$ is the indicator for the unit circle, then $\phi(X_i,Y_i)$ and
+$\phi(1-X_i,1-Y_i)$ have negative covariance; this makes sense, since
+only one of them can be outside the unit circle (though both could
+be the same).  Therefore, the estimator $\phi(X,Y)/2+\phi(1-X,1-Y)/2$
+actually has lower variance than $\phi(X,Y)$.  This is the method
+of *antithetic variables*.
+
+```{julia}
+function pi_mc(N=1000)
+    XY  = rand(2,N)
+    XY2 = 1.0 .- XY
+    trials1 = [xyj[1]^2+xyj[2]^2 < 1 for xyj in eachcol(XY) ]
+    trials2 = [xyj[1]^2+xyj[2]^2 < 1 for xyj in eachcol(XY2)]
+    trials = (trials1+trials2)/2
+    mean(trials1), std(trials1)/sqrt(N), mean(trials), std(trials)/sqrt(N)
+end
+
+pi_mc()
+```

@@ -1,0 +1,144 @@
+## Julia Fundamentals
+
+Julia is a relatively young language initially released in 2012; the first releases of MATLAB and Python were 1984 and 1991, respectively.
+It has become increasingly popular for scientific computing and data science types of problems for its speed, simple MATLAB-like array syntax, and support for a variety of programming paradigms.
+We will provide pointers to some resources for getting started with Julia (or going further with Julia), but here we summarize some useful things to remember for writing concise codes for this class.
+
+## Building matrices and vectors
+
+Julia supports general multi-dimensional arrays.
+Though the behavior can be changed, by default, these use one-based indexing (like MATLAB or Fortran, unlike Python or C/C++).
+Indexing uses square brackets (unlike MATLAB), e.g.
+
+```{.julia}
+x = v[1]
+y = A[1,1]
+```
+
+By default, we think of a one-dimensional array as a column vector, and a two-dimensional array as a matrix.
+We can do standard linear algebra operations like scaling (`2*A`), summing like types of objects
+(`v1+v2`), and matrix multiplication {`A*v`}.
+
+The expression
+
+```{.julia}
+w = v'
+```
+
+represents the adjoint of the vector `v` with respect to the standard inner product (i.e. the conjugate transpose).
+The tick operator also gives the (conjugate) transpose of a matrix.
+We note that the tick operator in Julia does not actually copy any storage; it just gives us a re-interpretation of the argument.
+This shows up, for example, if we write
+```{julia}
+let
+  v = [1, 2]  # v is a 2-element Vector{Int64} containing [1, 2]
+  w = v'      # w is a 1-2 adjoint(::Vector{Int64}) with eltype Int64
+  v[2] = 3    # Now v contains [1, 3] and w is the adjoint [1, 3]'
+end
+```
+
+Julia gives us several standard matrix and vector construction functions.
+
+```{.julia}
+Z = zeros(n)   # Length n vector of zeros
+Z = zeros(n,n) # n-by-n matrix of zeros
+b = rand(n)    # Length n random vector of U[0,1] entries
+e = ones(n)    # Length n vector of ones
+D = diagm(e)   # Construct a diagonal matrix
+e2 = diag(D)   # Extract a matrix diagonal
+```
+
+The identity matrix in Julia is simply `I`.
+This is an abstract matrix with a size that can usually be inferred from context.
+In the rare cases when you need a *concrete* instantiation of an identity matrix, you can use `Matrix(I, n, n)`.
+
+## Concatenating matrices and vectors
+
+In addition to functions for constructing specific types of matrices and vectors, Julia lets us put together matrices and vectors by horizontal and vertical concatenation.
+This works with matrices just as well as with vectors!
+Spaces are used for horizontal concatenation and semicolons for vertical concatenation.
+
+```{.julia}
+y = [1; 2]        # Length-2 vector
+y = [1 2]         # 1-by-2 matrix
+M = [1 2; 3 4]    # 2-by-2 matrix
+M = [I A]         # Horizontal matrix concatenation
+M = [I; A]        # Vertical matrix concatenation
+```
+
+Julia uses commas to separate elements of a list-like data type or an
+array.  So `[1, 2]` and `[1; 2]` give us the same thing (a
+length 2 vector), but `[I, A]` gives us a list consisting of a
+uniform scaling object and a matrix --- not quite the same as horizontal
+matrix concatenation.
+
+## Transpose and rearrangemenent
+
+Julia lets us rearrange the data inside a matrix or vector in a variety of ways.
+In addition to the usual transposition operation, we can also do "reshape" operations that let us interpret the same data layout in computer memory in different ways.
+
+```{.julia}
+# Reshape A to a vector, then back to a matrix
+# Note: Julia is column-major
+avec = reshape(A, prod(size(A)));
+A = reshape(avec, n, n)
+  
+idx = randperm(n)   # Random permutation of indices (need to use Random)
+Ac = A[:,idx]       # Permute columns of A
+Ar = A[idx,:]       # Permute rows of A
+Ap = A[idx,idx]     # Permute rows and columns
+```
+
+## Submatrices, diagonals, and triangles
+
+Julia lets us extract specific parts of a matrix, like the diagonal entries or the upper or lower triangle.  Some operations make separate copies of the data referenced:
+
+```{.julia}
+A = randn(6,6)    # 6-by-6 random matrix
+A[1:3,1:3]        # Leading 3-by-3 submatrix
+A[1:2:end,:]      # Rows 1, 3, 5
+A[:,3:end]        # Columns 3-6
+
+Ad = diag(A)      # Diagonal of A (as vector)
+A1 = diag(A,1)    # First superdiagonal
+Au = triu(A)      # Upper triangle
+Al = tril(A)      # Lower triangle
+```
+
+Other operations give a *view* of the matrix without making a copy of the contents, which can be much faster:
+
+```{.julia}
+A = randn(6,6)          # 6-by-6 random matrix
+view(A,1:3,1:3)         # View of leading 3-by-3 submatrix
+view(A,:,3:end)         # View of columns 3-6
+Au = UpperTriangular(A) # View of upper triangle
+Al = LowerTriangular(A) # View of lower triangle
+```
+
+## Matrix and vector operations
+
+Julia provides a variety of *elementwise* operations as well as linear algebraic operations.
+To distinguish elementwise multiplication or division from matrix multiplication and linear solves or least squares, we put a dot in front of the elementwise operations.
+
+```{.julia}
+y = d.*x   # Elementwise multiplication of vectors/matrices
+y = x./d   # Elementwise division
+z = x + y  # Add vectors/matrices
+z = x .+ 1 # Add scalar to every element of a vector/matrix
+  
+y = A*x    # Matrix times vector
+y = x'*A   # Vector times matrix
+C = A*B    # Matrix times matrix
+
+# Don't use inv!
+x = A\b    # Solve Ax = b *or* least squares
+y = b/A    # Solve yA = b or least squares
+```
+
+## Things best avoided
+
+There are few good reasons to compute explicit matrix inverses or determinants in numerical computations.
+Julia does provide these operations.
+But if you find yourself typing `inv` or `det` in Julia, think long and hard.
+Is there an alternate formulation?
+Could you use the forward slash or backslash operations for solving a linear system?

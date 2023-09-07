@@ -1,0 +1,266 @@
+# Calculus and Analysis Background
+
+::: {.content-hidden unless-format="html"}
+{{< include _common.tex >}}
+:::
+
+I assume no refresher is needed for most single-variable calculus.
+But it is useful to have some facts about multi-variable calculus and a few results from mathematical analysis at hand when designing and analyzing numerical methods, and the reader may be forgiven for not remembering all of this in the notation that I find most comfortable.
+
+## Multivariate differentiation
+
+A function $f : \mathbb{R}^n \rightarrow \mathbb{R}^m$ as a directional derivative (sometimes called a Gateaux derivative) at $x$ in the direction $u$ if $g(s) = f(x+su)$ is differentiable at $s = 0$.  In this case, we define the directional derivative
+$$
+  \frac{\partial f}{\partial u}(x) = \left. \frac{d}{ds} \right|_{s=0} f(x+su).
+$$
+A function is *Frechet* differentiable if there is a linear function $f'(x) : \mathbb{R}^n \rightarrow \mathbb{R}^m$, called the *Frechet derivative* or the *Jacobian*, such that for any direction $u$
+$$
+  f(x+su) = f(x) + s f'(x) u + r(s),
+$$
+where the remainder term $r(s)$ is $o(s)$, i.e. $r(s)/s \rightarrow 0$ as $s \rightarrow 0$.  A Frechet differentiable function clearly also has Gateaux derivatives in every direction, with
+$$
+  \frac{\partial f}{\partial u}(x) = f'(x) u.
+$$
+
+If we assume an inner product, the *gradient* $\nabla f(x)$ is the unique vector such that
+$$
+  \langle u, \nabla f(x) \rangle = f'(x) u.
+$$
+For $\mathbb{C}^n$ with the standard inner product, the gradient is just the conjugate transpose of the derivative, but other inner products give other notions of gradients.
+The negative gradient vector gives the direction of *steepest descent* with respect to the norm associated with the inner product.
+In some cases, it is also interesting to consider the direction of steepest descent the respect to other norms than Euclidean norms -- e.g. the 1-norm.
+
+The Frechet derivative of a function $f$ may itself be Frechet differentiable.  That is, we may have a linear function $f''(x) : \mathbb{R}^n \rightarrow \mathbb{R}^{n \times m}$ such that $f'(x+su) = f'(x) + s f'(x) u + o(s)$.  Rather than thinking of this as a linear map that produces linear maps, we generally think of $f''(x)$ as a *multilinear map* that takes two vectors in $\mathbb{R}^n$ as input and yields a vector in $\mathbb{R}^m$ as output.  If $u$ and $v$ are the input arguments, we can write the components of the output of this map as
+$$
+  (f''(x)[u, v])_i = \sum_{j,k} f_{i,jk} u_j v_k,
+$$
+where we use the compact "indicial notation"
+$$
+  f_{i,jk} \equiv \frac{\partial^2 f_i}{\partial x_j \partial x_k} (x).
+$$
+When the partials are continuous near $x$, they commute, i.e. $f_{i,jk} = f_{i,kj}$.
+It is sometimes convenient to adopt the *Einstein summation convention* where we assume that repeated indices in a product are meant to be summed, and drop the explicit symbol $\sum_{i,j}$.
+For a function $\phi : \bbR^n \rightarrow \bbR$, the *Hessian* is the matrix $H_{\phi}$ of second partial derivatives $[H_\phi]_{ij} = \phi_{,ij}$.
+The Hessian matrix is symmetric (or Hermitian, in the complex case) and naturally represents a quadratic form.
+
+A nice notational convention, sometimes called *variational* notation (as in "calculus of variations") is to write
+$$
+  \delta f = f'(x) \delta u,
+$$
+where $\delta$ should be interpreted as "first order change in," so that a symbol like $\delta u$ is interpreted as a single object rather than a product of a scalar $\delta$ and the direction $u$.
+In introductory calculus classes, this sometimes is called a total derivative or total differential, though there one usually uses $d$ rather than $\delta$.
+There is a good reason for using $\delta$ in the calculus of variations, though, so that's typically what I do.
+
+Variational notation can tremendously simplify the calculus book-keeping for dealing with multivariate functions.
+For example, consider the problem of differentiating $A^{-1}$ with respect to every element of $A$.
+I would compute this by thinking of the relation between a first-order change to $A^{-1}$ (written $\delta [A^{-1}]$) and a corresponding first-order change to $A$ (written $\delta A$).
+Using the product rule and differentiating the relation $I = A^{-1} A$, we have
+$$
+  0 = \delta [A^{-1} A] = \delta [A^{-1}] A + A^{-1} \delta A.
+$$
+Rearranging a bit gives
+$$
+  \delta [A^{-1}] = -A^{-1} [\delta A] A^{-1}.
+$$
+One *can* do this computation element by element, but it's harder to do it without the computation becoming horrible.
+
+## Taylor approximation
+
+If $f : \bbR \rightarrow \bbR$ has $k+1$ continuous derivatives, then Taylor's theorem with remainder is
+$$
+  f(x+z) = f(x) + f'(x) z + \ldots + \frac{1}{k!} f^{(k)}(x) +
+           \frac{1}{(k+1)!} f^{(k+1)}(x+\xi)
+$$
+where $\xi \in [x, x+z]$.
+This is the Lagrange form of the remainder; other forms (the Cauchy form, the integral form) are useful under some circumstances.
+We usually work with simple linear approximations, i.e.
+$$
+  f(x+z) = f(x) + f'(x) z + O(z^2),
+$$
+though sometimes we will work with the quadratic approximation
+$$
+  f(x+z) = f(x) + f'(x) z + \frac{1}{2} f''(x) z^2 + O(z^3).
+$$
+In both of these, when say the error term $e(z)$ is $O(g(z))$, we mean that for small enough $z$, there is some constant $C$ such that
+$$
+  |e(z)| \leq C g(z).
+$$
+We don't need to remember a library of Taylor expansions, but it is useful to remember that for $|\alpha| < 1$, we have the geometric series
+$$
+  \sum_{j=0}^\infty \alpha^j = (1-\alpha)^{-1}.
+$$
+
+In more than one space dimension, the basic picture of Taylor's theorem remains the same.
+If $f : \bbR^n \rightarrow \bbR^m$, then
+$$
+  f(x+z) = f(x) + f'(x) z + O(\|z\|^2)
+$$
+where $f'(x) \in \bbR^{m \times n}$ is the Jacobian matrix at $x$.
+
+If $\phi : \bbR ^n \rightarrow \bbR$, then
+$$
+  \phi(x+z) = \phi(z) + \phi'(x) z + \frac{1}{2} z^T \phi''(z) z + O(\|z\|^3).
+$$
+The row vector $\phi'(x) \in \bbR^{1 \times n}$ is the derivative of $\phi$.
+A point at which the derivative is zero is a *stationary point*.
+The Hessian matrix $\phi''(z)$ is the matrix of second partial derivatives of $\phi$.
+The Hessian represents a quadratic form, and the inertia of the form (the number of positive, negative, and zero eigenvalues) can sometimes be used to tell us if a stationary point represents a local minimum or maximum (the so-called second derivative test).
+
+Low-order Taylor expansions of multivariate functions are notationally nice, and we will rarely need to go beyond them.  In the case that we do need to go further, we will use indicial notation with the summation convention, e.g.
+$$
+  f_i(x+u) = f_i(x) + f_{i,j}(x) u_j + \frac{1}{2} f_{i,jk}(x) u_j u_k + \frac{1}{6} f_{i,jkl}(x) u_j u_k u_l + \ldots.
+$$
+
+## Finite differencing
+
+Suppose $f : \mathbb{R}^n \rightarrow \mathbb{R}^m$ is twice continuously differentiable.
+Then taking the Taylor expansion with remainder
+$$
+  f'(x + hu) = f'(x) + h f'(x) u + \frac{h^2}{2} f''(x+\xi u)[u, u],
+$$
+we have that
+$$
+  \frac{f(x+hu)-f(x)}{h} = f'(x) u + \frac{h}{2} f''(x+\xi u)[u,u] = f'(x) + O(h).
+$$
+Therefore, we can approximate $f'(x) u$ by a *finite difference*.  We can also use a *centered finite difference* for higher order accuracy (assuming continuous third derivatives):
+$$
+  \frac{f(x+hu)-f(x-hu)}{2h} = f'(x) + \frac{h^2}{6} f'''(x+\xi u)[u,u,u] = f'(x) + O(h^2).
+$$
+Among other things, finite difference approximations are extremely useful when we want to sanity check an analytical formula for a derivative.
+
+## Matrix calculus rules
+
+There are some basic calculus rules for expressions involving matrices and vectors that are easiest to just remember.
+These are naturally analogous to the rules in 1D.
+If $f$ and $g$ are differentiable maps whose composition makes sense, the multivariate chain rule says
+$$
+  \delta [f(g(x))] = f'(g(x)) \delta g, \quad
+  \delta g = g'(x) \delta x
+$$
+If $A$ and $B$ are matrix-valued functions, we also have
+\begin{align*}
+  \delta [A+B] &= \delta A + \delta B \\
+  \delta [AB] &= [\delta A] B + A [\delta B], \\
+  \delta [A^{-1} B] &= -A^{-1} [\delta A] A^{-1} B + A^{-1} \delta B
+\end{align*}
+and so forth.
+The big picture is that the rules of calculus work as well for matrix-valued functions as for scalar-valued functions, and the main changes account for the fact that matrix multiplication does not commute.
+You should be able to convince yourself of the correctness of any of these rules using the component-by-component reasoning that you most likely learned in an introductory calculus class, but using variational notation (and the ideas of linear algebra) simplifies life immensely.
+
+A few other derivatives are worth having at your fingertips (in each of the following formulas, $x$ is assumed variable while $A$ and $b$ are constant
+\begin{align*}
+  \delta [Ax-b] &= A \delta x \\
+  \delta [\|x\|^2] &= 2 x^T \delta x \\
+  \delta \left[\frac{1}{2} x^T A x - x^T b\right] &= (\delta x)^T (Ax-b) \\
+  \delta \left[\frac{1}{2} \|Ax-b\|^2 \right] &= (A \delta x)^T (Ax-b)
+\end{align*}
+and if $f : \bbR^n \rightarrow \bbR^n$ is given by $f_i(x) = \phi(x_i)$, then
+$$
+  \delta [f(x)] = \operatorname{diag}(\phi'(x_1), \ldots, \phi'(x_n))
+  \, \delta x.
+$$
+
+## Metric spaces
+
+A *metric space* is a set $\Omega$ together with a distance function (or metric) $d$ satisfying for all $x, y, z \in \Omega$
+
+- *Symmetry*: $d(x,y) = d(y,x)$
+- *Positive definiteness*: $d(x,y) \geq 0$ with equality iff $x = y$
+- *Triangle inequality*: $d(x,y) \leq d(x,z) + d(z,y)$
+
+Any normed vector space is also a metric space with the norm $d(x,y) = \|x-y\|$.  Also, any subset of a metric space is a metric space.  The topology associated with a metric space is analogous to that of the reals: a subset $\calU \subset \Omega$ is open if for any $x \in \calU$ there is an $\epsilon > 0$ such that the ball $B_{\epsilon}(u) = \{ v \in \Omega : d(v,u) < \epsilon \}$ is contained within $\calU$.
+
+A *Cauchy sequence* in a metric space is a sequence $x_1, x_2, \ldots$ such that for any $\epsilon > 0$, points far enough out in the sequence are all within $\epsilon$ of each other (i.e. $\forall \epsilon >0, \exists N : \forall j, k \geq N, d(x_j, x_k) < \epsilon$).  A metric space is *complete* if all Cauchy sequences converge.  Any closed subset of a complete metric space is itself complete.
+
+A complete normed vector space is called a *Banach space*.
+Any finite-dimensional normed vector space over a complete field like $\mathbb{R}$ or $\mathbb{C}$ is a Banach space. 
+nfinite-dimensional normed vector spaces over $\mathbb{R}$ or $\mathbb{C}$ do not always need to be complete, but most infinite-dimensional normed vector spaces we use regularly are complete.
+
+The metric space $\Omega$ is *compact* if any open cover of $\Omega$ has a finite subcover.
+In the case of finite-dimensional normed vector spaces, any closed and bounded subset is compact (this is not true in infinite-dimensional normed vector spaces).
+One reason we care about compactness is that any continuous function on a compact set achieves a minimum an maximum value.
+
+## Lipschitz constants
+
+Suppose $f : \Omega \subset \calU \rightarrow \calV$ is a map between metric spaces.  We say $f$ is *Lipschitz* with constant $M$ if for all $x, y \in \Omega$,
+$$
+  d(f(x), f(y)) \leq M d(x,y).
+$$
+The concept of Lipschitz continuity is broadly useful in analysis.
+
+If $\mathcal{U}$ and $\mathcal{V}$ are normed vector spaces and $f$ is continuously differentiable on $\Omega$, any bound on $\|f'(x)\|$ over $\Omega$ is a Lipschitz constant (and the tightest Lipschitz constant is $\sup_{x \in \Omega} \|f'(x)\|$).
+But a function can easily be Lipschitz even if it is not differentiable; for example, the absolute value function on $\mathbb{R}$ is Lipschitz with constant 1.
+
+Having a Lipschitz constant is not as nice as having a derivative.
+However, we get some of the same nice properties
+For example, if $f$ and $g$ are Lipschitz functions with constants $M$ and $N$ and the composition $f \circ g$ makes sense, then $f \circ g$ is Lipschitz with constant $M N$.
+If $f + g$ makes sense, then it is Lipschitz with constant $M+N$.
+If $f$ and $g$ are Lipschits and bounded and the product $\langle f, g \rangle$ makes sense, then $\langle f, g \rangle$ is Lipschitz with constant $M \max \|g\| + N \max \|f\|$.
+And if $f$ is $k$-times continuously differentiable and the $k$th derivative has Lipschitz constant $M$, then we have that the residual error in Taylor approximation through the $k$th degree term is bounded by $Mr^{k+1}/(k+1)!$, where $r$ is the distance from the center of the Taylor series.
+
+## Contraction mappings
+
+A *contraction mapping* $G : \Omega \rightarrow \Omega$ is a Lipschitz function on a set $\Omega$ with constant $\alpha < 1$.
+We sat the map $G$ is *locally contractive* near $x$ if it is Lipschitz with constant $\alpha < 1$ in some local neighborhood of $x$.
+Contraction mappings are a useful tool both for showing the existence and uniqueness of solutions to systems of equations (or optimization problems) and for constructing algorithms to find such solutions.
+
+### Banach fixed point theorem
+
+Assuming $\Omega$ is a closed subset of a Banach space[^banach-vs-metric], then $G$ has a unique fixed point $x_* \in \Omega$, i.e. a unique point such that $G(x_*) = x_*$.
+This fact is variously called the *contraction mapping theorem* and the *Banach fixed point theorem*.
+The proof is interesting because it is a construction that can be carried out numerically.
+Let $x_0 \in \Omega$ be an arbitrary starting point, and consider the *fixed point iteration* $x_{k+1} = G(x_k)$.  By contractivity,
+$$
+  \|x_{k+1} - x_k\| = \|G(x_k) - G(x_{k-1})\| \leq \alpha \|x_k-x_{k-1}\|,
+$$
+and by induction on this fact,
+$$
+  \|x_{k+1} - x_k\| \leq \alpha^k \|x_1-x_0\|.
+$$
+For any $l > k$, we have 
+\begin{align}
+  \|x_l - x_k\| 
+  & = \left\| \sum_{j=k}^{l-1} (x_{j+1}-x_j) \right\| \\
+  & \leq \sum_{j=k}^{l-1} \|x_{j+1}-x_j\| \\
+  & \leq \sum_{j=k}^{l-1} \alpha^j \|x_1-x_0\| \\
+  & \leq \alpha^k \frac{\|x_1-x_0\|}{1-\alpha}.
+\end{align}
+Therefore, we have a Cauchy sequence that converges to a limit point $x_*$, which is the fixed point.
+Uniqueness comes from the fact that if $x_*$ and $x'_*$ are both fixed points in $\Omega$, then
+$$
+  \|x_*-x'_*\| = \|G(x_*)-G(x'_*)\| \leq \alpha \|x_*-x'_*\|,
+$$
+which implies that $\|x_*-x'_*\| = 0$, so $x_* = x'_*$.
+Moreover, at any given step $k$, we have the error bound
+$$
+  \|x_k-x_*\| \leq \frac{\|x_{k+1}-x_k\|}{1-\alpha}.
+$$
+
+[^banach-vs-metric]: The Banach fixed point theorem applies to any complete metric space.  But all the examples in this class will be closed subsets of Banach spaces, so we will stick to that setting.
+
+### Local convergence
+
+Now suppose that $G$ has a fixed point $x_*$, and $\|G'(x)\| \leq \alpha < 1$ over some closed ball $\bar{B}_{\rho}(x_*) = \{x : \|x-x_*\| \leq \rho\}$.  Then
+$$
+  \forall x \in \bar{B}_\rho(x_*), \|G(x)-x_*\| = \|G(x)-G(x_*)\| \leq \alpha \|x-x_*\| < \|x-x_*\|
+$$
+and so $G$ maps the ball into itself.  Therefore, $G$ is a contraction mapping on $\bar{B}_\rho(x_*)$, and fixed point iteration from any starting point in that ball will converge to the unique fixed point $x_*$ within the ball.
+
+### Preventing escape
+
+The contraction mapping theorem is useful both for telling us that a fixed point exists and is unique, and for giving us an iteration that converges to that fixed point.
+But sometimes it is difficult to get *global* contractivity.
+If we know a fixed point exists, we have just shown that a "local" notion of contractivity around that fixed point is enough.
+But what if we do not have global contractivity and also are not sure that a fixed point exists?
+Fortunately, a condition preventing "escape" from a local region of contractivity is sometimes good enough.
+
+For example, suppose $\|G'(x_0)\| \leq \alpha$ and $G'$ is Lipschitz with constant $M$.
+Consider the fixed point iteration $x_{k+1} = G(x_k)$ starting from $x_0$, and let $d_1 = \|x_1-x_0\|$.
+Then if $\alpha' = \alpha + Md_1 < 1$, we can show
+
+- $G$ is Lipschitz with constant $\alpha'$ on a ball of radius $d_1/(1-\alpha')$ about $x_0$.
+- By an induction: The iterates satisfy $\|x_k-x_0\| \leq \frac{1-(\alpha')^k}{1-\alpha'} d_1 < d_1/(1-\alpha'),$ i.e. the iterates stay in the ball; and therefore they continue to satisfy $\|x_{k+1}-x_k\| \leq (\alpha')^k d_1$.
+
+Therefore in this situation as well, the iterates converge to a fixed point that is at most $d_1/(1-\alpha')$ away from the starting point.
+As with the contractive mapping theorem, this is enough for us to show that 
+we can show by induction that the iteration remains within a ball of radius $d_1/(1-\alpha')$ around $x_0$, that it converges to some $x_*$ in that ball, and that the convergence is geometric with rate constant $\alpha$.

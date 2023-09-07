@@ -1,0 +1,51 @@
+# Error Analysis Basics
+
+## Floating point
+
+Most floating point numbers are essentially *normalized scientific notation*, but in binary.
+A typical normalized number in double precision looks like
+$$
+  (1.b_1 b_2 b_3 \ldots b_{52})_2 \times 2^{e}
+$$
+where $b_1 \ldots b_{52}$ are 52 bits of the *significand* that appear after the binary point.
+In addition to the normalize representations, IEEE floating point includes subnormal numbers (the most important of which is zero) that cannot be represented in normalized form; $\pm \infty$; and Not-a-Number (NaN), used to represent the result of operations like $0/0$.
+
+The rule for floating point is that "basic" operations (addition, subtraction, multiplication, division, and square root) should return the true result, correctly rounded.
+So a Julia  statement
+```{.julia}
+# Compute the sum of x and y (assuming they are exact)
+z = x + y
+```
+actually computes $\hat{z} = \operatorname{fl}(x+y)$ where $\operatorname{fl}(\cdot)$ is the operator that maps real numbers to the closest floating point representation.
+For numbers that are in the normalized range (i.e. for which $\operatorname{fl}(z)$ is a normalized floating point number), the relative error in approximating $z$ by $\operatorname{fl}(z)$ is smaller in magnitude than machine epsilon; for double precision, $\epsilon_{\mathrm{mach}} = 2^{-53} \approx 1.1 \times 10^{-16}$; that is,
+$$
+  \hat{z} = z(1+\delta), \quad |\delta| \leq \epsilon_{\mathrm{mach}}.
+$$
+We can *model* the effects of roundoff on a computation by writing a separate $\delta$ term for each arithmetic operation in Julia; this is both incomplete (because it doesn't handle non-normalized numbers properly) and imprecise (because there is more structure to the errors than just the bound of machine epsilon).
+Nonetheless, this is a useful way to reason about roundoff when such reasoning is needed.
+
+## Sensitivity, conditioning, and types of error
+
+In almost every sort of numerical computation, we need to think about errors.
+Errors in numerical computations can come from many different sources, including:
+
+- *Roundoff error* from inexact computer arithmetic.
+- *Truncation error* from approximate formulas.
+- *Termination of iterations*.
+- *Statistical error*.
+
+There are also *model errors* that are related not to how accurately we solve a problem on the computer, but to how accurately the problem we solve models the state of the world.
+
+There are also several different ways we can think about errors.
+The most obvious is the *forward error*: how close is our approximate answer to the correct answer?
+One can also look at *backward error*: what is the smallest perturbation to the problem such that our approximation is the true answer?
+Or there is *residual error*: how much do we fail to satisfy the defining equations?
+
+For each type of error, we have to decide whether we want to look at the *absolute* error or the *relative* error.
+For vector quantities, we generally want the *normwise* absolute or relative error, but often it's critical to choose norms wisely.
+The *condition number* for a problem is the relation between relative errors in the input (e.g. the right hand side in a linear system of equations) and relative errors in the output (e.g. the solution to a linear system of equations).
+Typically, we analyze the effect of roundoff on numerical methods by showing that the method in floating point is *backward stable* (i.e. the effect of roundoffs lead to an error that is bounded by some polynomial in the problem size times $\epsilon_{\mathrm{mach}}$) and separately trying to show that the problem is *well-conditioned* (i.e. small backward error in the problem inputs translates to small forward error in the problem outputs).
+
+We are often concerned with *first-order* error analysis, i.e. error analysis based on a linearized approximation to the true problem.
+First-order analysis is often adequate to understand the effect of roundoff error or truncation of certain approximations.
+It may not always be enough to understand the effect of large statistical fluctuations.

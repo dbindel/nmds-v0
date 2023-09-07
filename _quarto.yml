@@ -1,0 +1,37 @@
+project:
+  type: book
+
+book:
+  title: "Numerical Methods for Data Science"
+  author: "David Bindel"
+  chapters:
+    - index.qmd
+    - intro.qmd
+    - part: background.qmd
+      chapters: 
+        - bg_la.qmd
+        - bg_calc.qmd
+        - bg_prob.qmd
+        - bg_cs.qmd
+        - bg_error.qmd
+        - bg_julia.qmd
+    - references.qmd
+
+bibliography: references.bib
+
+format:
+  html:
+    theme: cosmo
+  pdf:
+    documentclass: scrreprt
+    pdf-engine: lualatex
+    include-in-header:
+      text: |
+          \usepackage{amsmath}
+          \usepackage{amssymb}
+          \usepackage{fontspec}
+          \usepackage{polyglossia}
+          \setmonofont{DejaVu Sans Mono}[Scale=MatchLowercase]
+          \input{_common.tex}
+
+

@@ -1,0 +1,23 @@
+# Preface {.unnumbered}
+
+This is an incomplete draft of a text to accompany
+[Cornell CS 6241: Numerical Methods for Data Science](https://www.cs.cornell.edu/courses/cs6241/2023fa/).
+It is being written as we proceed through the Fall 2023 semester, using [Quarto](https://quarto.org/) as a typesetting system and [Julia](https://julialang.org/) as the programming language for most of the computational examples.
+Both the book draft and the course materials are available via GitHub, and I welcome comments via email or pull request.
+
+The course is designed for a target audience of beginning graduate students with a firm foundation in linear algebra, probability and statistics, and multivariable calculus, along with some background in numerical analysis.
+The focus is on numerical methods, with an eye to how thoughtful design of numerical methods can help us solve problems of data science.
+I am deliberately vague about what I mean by "data science," but my hope is that students will find this material useful whether they are interested in computational statistics, in data-driven models from science and engineering, or in machine learning.  Topically, the course is organized into roughly six units, each of about two weeks:
+
+1. *Least squares and regression*: direct and iterative linear and nonlinear least squares solvers direct randomized approximations and preconditioning; Newton, Gauss-Newton, and IRLS methods for nonlinear problems; regularization; robust regression.
+2. *Matrix and tensor data decompositions*: direct methods, iterations, and randomized approximations for SVD and related decomposition methods; nonlinear dimensionality reduction; non-negative matrix factorization; tensor decompositions.
+3. *Low-dimensional structure in function approximation*: active subspace / sloppy model approaches to identifying the most relevant parameters in high-dimensional input spaces and model reduction approaches to identifying low-dimensional structure in high-dimensional output spaces.
+4. *Kernel interpolation and Gaussian processes*: statistical and deterministic interpretations and error analysis for kernel interpolation; methods for dealing with ill-conditioned kernel systems; and methods for scalable inference and kernel hyper-parameter learning.
+5. *Numerical methods for graph data*: implication of different graph structures for linear solvers; graph-based coordinate embedding methods; analysis methods based on matrix functions; computation of centrality measures; and spectral methods for graph partitioning and clustering.
+6. *Learning models of dynamics*: system identification and auto-regressive model fitting; Koopman theory; dynamic mode decomposition.
+
+The reader may have noticed that this list of topics is ambitious for a one-semester course even for students with a strong numerical analysis background.
+In practice, students come to this course from a variety of backgrounds and while they often have some grounding in computational statistics, machine learning, etc, the majority have not had even a semester introductory survey in numerical analysis, let alone a deeper dive.
+Hence, the long term goal of this work is a textbook with two parts, which I tend to think of as "Numerical Methods *applied to* Data Science" and "Numerical Methods *for* Data Science."
+The plan is that the first part should correspond to an undergraduate numerical methods survey covering the standard topics, with example applications drawn from data science; and the second part should correspond to more specialized methods.
+If things go according to plan, the result might be a book with about three semesters worth of material taught, with some identified paths through it that might correspond to reasonable one-semester course plans.

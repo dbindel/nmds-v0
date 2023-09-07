@@ -1,0 +1,20 @@
+# CS Background
+
+## Order notation and performance
+
+Just as we use big-O notation in calculus to denote a function (usually an error term) that goes to zero at a controlled rate as the argument goes to zero, we use big-O notation in algorithm analysis to
+denote a function (usually run time or memory usage) that grows at a controlled rate as the argument goes to infinity.
+For instance, if we say that computing the dot product of two length $n$ vectors is an $O(n)$ operation, we mean that the time to compute the dot products of length greater than some fixed constant $n_0$ is bounded by $C n$ for some constant $C$.
+The point of this sort of analysis is to understand how various algorithms scale with problem size without worrying about all the details of implementation and architecture (which essentially affect the constant $C$).
+
+Most of the major factorizations of *dense* numerical linear algebra take $O(n^3)$ time when applied to square $n \times n$ matrices, though some building blocks (like multiplying a matrix by a vector or scaling a vector) take $O(n^2)$ or $O(n)$ time.
+We often write the algorithms for factorizations that take $O(n^3)$ time using block matrix notation so that we can build these factorizations from a few well-tuned $O(n^3)$ building blocks, the most important of which is matrix-matrix multiplication.
+
+## Graph theory and sparse matrices
+
+In *sparse* linear algebra, we consider matrices that can be represented by fewer than $O(n^2)$ parameters.
+That might mean most of the elements are zero (e.g.~as in a diagonal matrix), or it might mean that there is some other low-complexity way of representing the matrix (e.g.~the matrix might be a rank-1 matrix that can be represented as an outer product of two length $n$ vectors).
+We usually reserve the word "sparse" to mean matrices with few nonzeros, but it is important to recognize that there are other *data-sparse* matrices in the world.
+
+The *graph* of a sparse matrix $A \in \mathbb{R}^{N \times N}$ consists of a set of $N$ vertices $\mathcal{V} = \{1, 2, \ldots, N\}$ and a set of edges $\mathcal{E} = \{(i,j) : a_{ij} \neq 0\}$.
+While the cost of general dense matrix operations usually depends only on the sizes of the matrix involved, the cost of sparse matrix operations can be highly dependent on the structure of the associated graph.
