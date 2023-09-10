@@ -4,11 +4,10 @@
 {{< include _common.tex >}}
 :::
 
-::: {.hidden}
 ```{julia}
+#| echo: false
 using Statistics
 ```
-:::
 
 Monte Carlo methods involve computations done with the help of random
 numbers.  To reason about Monte Carlo methods, we need a

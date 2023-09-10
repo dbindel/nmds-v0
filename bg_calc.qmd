@@ -1,4 +1,4 @@
-# Calculus and Analysis Background
+# Calculus, Optimization, Analysis
 
 ::: {.content-hidden unless-format="html"}
 {{< include _common.tex >}}
@@ -51,8 +51,66 @@ where $\delta$ should be interpreted as "first order change in," so that a symbo
 In introductory calculus classes, this sometimes is called a total derivative or total differential, though there one usually uses $d$ rather than $\delta$.
 There is a good reason for using $\delta$ in the calculus of variations, though, so that's typically what I do.
 
-Variational notation can tremendously simplify the calculus book-keeping for dealing with multivariate functions.
-For example, consider the problem of differentiating $A^{-1}$ with respect to every element of $A$.
+### Chain rule {.unnumbered}
+
+The chain rule tells us we can interchange linearization and composition of functions.  If $f : \mathbb{R}^n \rightarrow \mathbb{R}^m$ and $g : \mathbb{R}^p \rightarrow \mathbb{R}^n$, then near a given $y = g(x)$ and $z = f(y)$ we have
+\begin{align}
+  f(g(x+su))
+  &= f(y + s g'(x) u + o(s)) \\
+  &= z + s f'(y) g'(x) u + o(s).
+\end{align}
+Using variational notation, 
+$$
+  \delta z = f'(y) \delta y, \quad \delta y = g'(x) \delta x.
+$$
+or, putting things together,
+$$
+  \delta z = f'(y) g'(x) \delta x.
+$$
+When we evaluate the composite function, the dependency between them means we generally first compute $x$, then $y$, then $z$.
+But associativity makes it easy to also reorder the expression as
+$$
+  \delta z = \left( f'(y) g'(x) \right) \delta x,
+$$
+i.e. we can compute the matrix $f'(y) g'(x)$ first, and then multiply by $\delta x$.
+Because this association proceeds "backwards" from the outputs to the inputs, it is sometimes called "backpropagation."
+
+Another way of writing the same equation is to think of computing the gradient (in the standard inner product):
+$$
+  \delta z = \langle \delta x, \nabla (f \circ g) \rangle
+$$
+where
+$$
+  \nabla_x (f \circ g) = (f'(y) g'(x))^T = g'(x)^T f'(y)^T = \nabla g(x) \nabla f(y).
+$$
+
+### Implicit functions {.unnumbered}
+
+Suppose $F : \bbR^n \times \bbR^m \rightarrow \bbR^n$ is continuously differentiable, and write the Jacobian in block form as
+$$
+  F'(x,y) = \begin{bmatrix} \frac{\partial F}{\partial x} & \frac{\partial F}{\partial y} \end{bmatrix}.
+$$
+The *implicit function theorem* tells us that if $F(x_0, y_0) = 0$ and $\partial F/\partial u$ is nonsingular at $(x_0, y_0)$, then in a neighborhood $\Omega$ containing $y_0$ we can locally define a continuously differentiable function $g : \bbR^m \rightarrow \bbR^n$ such that
+$$
+  x_0 = g(y_0) \mbox{ and } F(g(y), y) = 0.
+$$
+As long as it is defined, we can differentiate such a $g$ using the chain rule.  For conciseness, write $u = (g(y), y)$; then
+$$
+  \frac{\partial F}{\partial x}(u) g'(y) + \frac{\partial F}{\partial y}(u) = 0,
+$$
+and so
+$$
+  g'(y) = 
+  -\left( \frac{\partial F}{\partial x}(u) \right)^{-1}
+  \left( \frac{\partial F}{\partial y}(u) \right).
+$$
+In variational notation, we would usually say that if $x = g(y)$, we have the variational relation
+$$
+  \frac{\partial F}{\partial x} \delta x + \frac{\partial F}{\partial y} \delta y = 0.
+$$
+This variational notation often simplifies life, particularly if the arguments to $F$ are really matrices.
+
+As an example of using variational notation to represent differentiation of an implicit function, consider the problem of differentiating $A^{-1}$ with respect to every element of $A$.
 I would compute this by thinking of the relation between a first-order change to $A^{-1}$ (written $\delta [A^{-1}]$) and a corresponding first-order change to $A$ (written $\delta A$).
 Using the product rule and differentiating the relation $I = A^{-1} A$, we have
 $$
@@ -66,14 +124,45 @@ One *can* do this computation element by element, but it's harder to do it witho
 
 ## Taylor approximation
 
-If $f : \bbR \rightarrow \bbR$ has $k+1$ continuous derivatives, then Taylor's theorem with remainder is
+### Single variable {.unnumbered}
+
+If $f : \bbR \rightarrow \bbR$ is differentiable, then by the fundamental theorem of calculus, we have
 $$
-  f(x+z) = f(x) + f'(x) z + \ldots + \frac{1}{k!} f^{(k)}(x) +
-           \frac{1}{(k+1)!} f^{(k+1)}(x+\xi)
+  f(x+z) = f(x) + \int_{0}^{z} f'(s) \, ds.
 $$
-where $\xi \in [x, x+z]$.
-This is the Lagrange form of the remainder; other forms (the Cauchy form, the integral form) are useful under some circumstances.
-We usually work with simple linear approximations, i.e.
+With two derivatives, we can integrate again to get
+\begin{align}
+  f(x+z) 
+  &= f(x) + \int_{0}^z \left( f'(x) + \int_0^s f''(x+t) \, dt \right) \, ds \\
+  &= f(x) + f'(x) z + \int_0^z \int_0^{s_1} f''(x+s_2) \, ds_2 \, ds_1
+\end{align}
+Continuing in this manner, for a $k+1$-times differentiable function, we have
+$$
+  f(x+z) = \sum_{j=0}^k \frac{1}{j!} f^{(j)} z^j + r(z)
+$$
+where
+$$
+  r(z) = \int_0^z \int_0^{s_1} \ldots \int_0^{s_k} f^{(k+1)}(x+s_{k+1}) \, ds_{k+1} \, \ldots \, ds_2 \, ds_1.
+$$
+If $f$ has $k+1$ *continuous* derivatives (i.e. $f \in C^{k+1}$), then we can apply the mean value theorem to write the remainder as
+$$
+  r(z) = \frac{1}{(k+1)!} f^{(k+1)}(x+\xi) z^{k+1}
+$$
+for some $\xi \in [x, x+z]$; this is the *Lagrange form* of the remainder.
+Often, we do not care about writing an exact formula for the remainder, and we will simply write
+$$
+  r(z) = o(z^k)
+$$
+if we are not assuming continuity of the $k+1$ derivative, or
+$$
+  r(z) = O(z^{k+1})
+$$
+if we do assume continuity.  Here we use little $o$ and big $O$ in the order notation sense:
+
+- $r(z) = o(g(z))$ if for any $C > 0$ there is an $\epsilon > 0$ such that for all $|z| < \epsilon$, $|r(z)| \leq C g(z)$.  Put differently, $\lim_{|z| \rightarrow 0} r(z)/g(z) = 0$.
+- $r(z) = O(g(z))$ if there is an $\epsilon > 0$ and a constant $C > 0$ such that for all $|z| < \epsilon$, $|r(z)| \leq C g(z)$.
+
+We most frequently work with simple linear approximations, i.e.
 $$
   f(x+z) = f(x) + f'(x) z + O(z^2),
 $$
@@ -81,14 +170,8 @@ though sometimes we will work with the quadratic approximation
 $$
   f(x+z) = f(x) + f'(x) z + \frac{1}{2} f''(x) z^2 + O(z^3).
 $$
-In both of these, when say the error term $e(z)$ is $O(g(z))$, we mean that for small enough $z$, there is some constant $C$ such that
-$$
-  |e(z)| \leq C g(z).
-$$
-We don't need to remember a library of Taylor expansions, but it is useful to remember that for $|\alpha| < 1$, we have the geometric series
-$$
-  \sum_{j=0}^\infty \alpha^j = (1-\alpha)^{-1}.
-$$
+
+### Multivariable case {.unnumbered}
 
 In more than one space dimension, the basic picture of Taylor's theorem remains the same.
 If $f : \bbR^n \rightarrow \bbR^m$, then
@@ -111,7 +194,7 @@ $$
   f_i(x+u) = f_i(x) + f_{i,j}(x) u_j + \frac{1}{2} f_{i,jk}(x) u_j u_k + \frac{1}{6} f_{i,jkl}(x) u_j u_k u_l + \ldots.
 $$
 
-## Finite differencing
+### Finite differencing {.unnumbered}
 
 Suppose $f : \mathbb{R}^n \rightarrow \mathbb{R}^m$ is twice continuously differentiable.
 Then taking the Taylor expansion with remainder
@@ -128,37 +211,202 @@ $$
 $$
 Among other things, finite difference approximations are extremely useful when we want to sanity check an analytical formula for a derivative.
 
-## Matrix calculus rules
+### Matrix series {.unnumbered}
 
-There are some basic calculus rules for expressions involving matrices and vectors that are easiest to just remember.
-These are naturally analogous to the rules in 1D.
-If $f$ and $g$ are differentiable maps whose composition makes sense, the multivariate chain rule says
+Let $f : \mathbb{C} \rightarrow \mathbb{C}$ be represented near 0 by a power series
 $$
-  \delta [f(g(x))] = f'(g(x)) \delta g, \quad
-  \delta g = g'(x) \delta x
+  f(z) = \sum_{j=0}^\infty c_j z^j,
 $$
-If $A$ and $B$ are matrix-valued functions, we also have
-\begin{align*}
-  \delta [A+B] &= \delta A + \delta B \\
-  \delta [AB] &= [\delta A] B + A [\delta B], \\
-  \delta [A^{-1} B] &= -A^{-1} [\delta A] A^{-1} B + A^{-1} \delta B
-\end{align*}
-and so forth.
-The big picture is that the rules of calculus work as well for matrix-valued functions as for scalar-valued functions, and the main changes account for the fact that matrix multiplication does not commute.
-You should be able to convince yourself of the correctness of any of these rules using the component-by-component reasoning that you most likely learned in an introductory calculus class, but using variational notation (and the ideas of linear algebra) simplifies life immensely.
+and suppose that the series converges absolutely for $|z| < \rho_f$.
+Let $A \in \mathbb{C}^{n \times n}$ be a matrix such that for some consistent norm, $\|A\| < \rho_f$.  By consistency of norms, for all $j \geq 0$,
+$$
+  \|A^j\| \leq \|A\|^j,
+$$
+and together with the triangle inequality, we have
+$$
+  \left\| \sum_{j=m}^n c_j A^j \right\| \leq \sum_{j=m}^n |c_j| \|A\|^j.
+$$
+Therefore, the partial sums of $\sum_{j=0}^\infty c_j A^j$ form a Cauchy sequence in the matrix space, and must converge to some limit $f(A)$, with the bound
+$$
+  \|f(A)\| \leq \sum_{j=0}^\infty |c_j| \|A\|^j.
+$$
+More broadly, if $f$ converges in an open set containing all the eigenvalues, then $f(A)$ converges.
 
-A few other derivatives are worth having at your fingertips (in each of the following formulas, $x$ is assumed variable while $A$ and $b$ are constant
+### Neumann series {.unnumbered}
+
+We don't need to remember a library of Taylor expansions, but it is useful to remember that for real $|\alpha| < 1$, we have the *geometric* series
+$$
+  \sum_{j=0}^\infty \alpha^j = (1-\alpha)^{-1}.
+$$
+One of the most important matrix series is the *Neumann series*, which is the matrix generalization of the geometric series.  If $\|A\| < 1$, then $I-A$ is invertible and has the convergent Neumann series
+$$
+  (I-A)^{-1} = \sum_{j=0}^\infty A^j.
+$$
+Using the norm bounds described above, along with convergence of the Neumann series, we have
+$$
+  \|(I-A)^{-1}\| \leq \sum_{j=0}^\infty \|A\|^j = \left( 1-\|A\| \right)^{-1}.
+$$
+
+## Optimization
+
+### Derivative tests {.unnumbered}
+
+Suppose $\phi : \mathbb{R}^n \rightarrow \mathbb{R}$ is differentiable at $x$.  Then
+$$
+  \phi(x+s \nabla \phi(x)) = \phi(x) + s \|\phi'(x)\|^2 + r(s), \quad r(s) = o(s).
+$$
+If $\phi'(x)$ is nonzero, then there is some $\epsilon > 0$ so that for all $0 < s < \epsilon$,
+$$
+  \phi(x-s \nabla \phi(x)) < \phi(x) < \phi(x+s \nabla \phi(x)).
+$$
+Hence, if $\phi'(x)$ is nonzero, then $x$ cannot be either a local minimizer or a local maximizer of $\phi$.  Taking the contrapositive: if $\phi$ is Frechet differentiable on all of $\mathbb{R}^n$, any local minimizer or maximizer must occur at a *stationary point*, i.e. a point where the derivative is zero.
+
+Suppose $\phi$ is twice differentiable near $x$, and that $x$ is a stationary point (so $\phi(x) = 0$).
+Then
+$$
+  \phi(x+u) = \phi(x) + \frac{1}{2} u^T \phi''(x) u + o(s^2).
+$$
+Hence, near $x$ the dominant term in the Taylor expansion is the quadratic form associated with the Hessian $\phi''(x)$. Analyzing the Hessian gives us the *second derivative test*:
+
+- When the Hessian is positive definite, the quadratic term is positive for $u \neq 0$, and so the stationary point is a strong local minimum.
+- When the Hessian is negative definite, the quadratic term is negative for $u \neq 0$, and so the stationary point is a strong local minimum.
+- When the Hessian has both positive and negative eigenvalues (directions of positive and negative curvature), the stationary point is neither a maximum nor a minimum, but a saddle point.
+- When the Hessian is positive semidefinite or negative semidefinite, it could be a local minimum or a local maximum -- but one needs to check higher order derivatives to be sure.
+
+### Equality constraints {.unnumbered}
+
+Now suppose we want to minimize $\phi : \bbR^n \rightarrow \bbR$ over $\Omega \subset \bbR^n$ defined by equality constraints:
+$$
+  \Omega = \{x \in \bbR^n : \forall i \in [m], c_i(x) = 0 \}.
+$$
+for some $c : \bbR^n \rightarrow \bbR^m$.  We assume both $\phi$ and $c$ are continuously differentiable.
+
+If $c'(x)$ is full (row) rank, then there is an $(n-m)$-dimensional space of tangent directions to $\Omega$ at $x$, given by $\{ \delta x : c'(x) \delta x = 0 \}.$
+The point $x$ cannot be a minimum or maximum if it obviously increases or decreases in one of these tangent directions;
+that is, a first-order necessary condition for $x$ to be an extremum is that
+$$
+  c'(x) \delta x = 0 \implies \phi'(x) \delta x = 0.
+$$
+The row vectors of $c'(x)$ form a basis for all row vectors that satisfy this condition.
+That is, in order for $\phi'(x)$ to satisfy the condition, we must be able to uniquely write $\phi'(x)$ as a linear combination of the row vectors of $c'(x)$.
+Put differently, we require the (unique) coefficients $\lambda$ so that
+$$
+  \phi'(x) + \sum_{i=1}^m \lambda_i c_i'(x) = \phi'(x) + \lambda^T c'(x) = 0.
+$$
+The coefficients $\lambda_i$ are known as *Lagrange multipliers*, and
+we can interpret this linear combination as the gradient of the *Lagrangian* function
+$$
+  L(x, \lambda) = \phi(x) + \lambda^T c(x).
+$$
+
+The stationarity of the Lagrangian gives us the analogue of the first derivative test in the uncase.
+The analogue of the second derivative test looks at the quadratic form associated with the Hessian $\phi''$ in directions that are consistent with the constraints.
+That is, suppose $x_*$ is a stationary point for the Lagrangian with full rank $c'(x_*)$, and let $U$ be a basis for the null space of $c'(x_*)$.  Then
+
+- We have a strong local minimum if $U^* \phi''(x_*) U$ is positive definite.
+- We have a strong local maximum if $U^* \phi''(x_*) U$ is negative definite.
+- We have a saddle if $U^* \phi''(x_*) U$ is indefinite.
+
+As before, we need to consider higher derivatives if we want to diagnose the case where $U^* \phi''(x_*) U$ is positive or negative semidefinite.
+
+Working with an explicit null space basis is often inconvenient, particularly for high-dimensional problems with a small number of constraints.  In this case, an alternate form of the second derivative test involves looking at the *bordered matrix* which has the block form
+$$
+  H = \begin{bmatrix} \phi''(x_*) & c'(x_*)^T \\ c'(x) & 0 \end{bmatrix}.
+$$
+In this setting, the matrix $H$ is always indefinite, but we can write a version of the second derivative test in terms of the inertia:
+
+- We have a strong local minimum if $H$ has $n-m$ positive eigenvalues.
+- We have a strong local maximum if $H$ has $n-m$ negative eigenvalues.
+- We have a saddle point if $H$ has at fewer than $n-m$ positive eigenvalues and fewer than $n-m$ negative eigenvalues.
+
+### KKT conditions {.unnumbered}
+
+Now suppose that we seek to optimize $\phi : \Omega \rightarrow \bbR$ where $\Omega$ is defined by equality and inequality constraints:
+$$
+  \Omega = \{ x \in \bbR^n : c_i(x) = 0, i \in \calE \mbox{ and } c_i(x) \leq 0, i \in \calI \},
+$$
+where $\calE$ and $\calI$ are index sets associated with equality and inequality constraints, respectively.  Now we define the *augmented Lagrangian*
+$$
+  L(x, \lambda, \mu) = \phi(x) +
+    \sum_{i \in \mathcal{E}} \lambda_i c_i(x) +
+    \sum_{i \in \mathcal{I}} \mu_i c_i(x).
+$$
+The *Karush-Kuhn-Tucker (KKT) conditions* are first-order conditions for $x_*$ to be a constrained minimizer or maximizer:
 \begin{align*}
-  \delta [Ax-b] &= A \delta x \\
-  \delta [\|x\|^2] &= 2 x^T \delta x \\
-  \delta \left[\frac{1}{2} x^T A x - x^T b\right] &= (\delta x)^T (Ax-b) \\
-  \delta \left[\frac{1}{2} \|Ax-b\|^2 \right] &= (A \delta x)^T (Ax-b)
+  \nabla_x L(x_*) &= 0 \\
+  c_i(x_*) &= 0, \quad i \in \mathcal{E}
+  & \mbox{equality constraints}\\
+  c_i(x_*) & \leq 0, \quad i \in \mathcal{I}
+  & \mbox{inequality constraints}\\
+  \mu_i & \geq 0, \quad i \in \mathcal{I}
+  & \mbox{non-negativity of multipliers}\\
+  c_i(x_*) \mu_i &= 0, \quad i \in \mathcal{I}
+  & \mbox{complementary slackness}
 \end{align*}
-and if $f : \bbR^n \rightarrow \bbR^n$ is given by $f_i(x) = \phi(x_i)$, then
+The satisfaction of the equality and inequality constraints is also called *primal feasibility*, while the satisfaction of the non-negativity of the multipliers is called *dual feasibility*.
+We say an inequality constraint is *active* when the associated inequality is actually zero.
+As with the equality-constrained case, we need a condition on the constraints to avoid degeneracy, sometimes called a *constraint qualification* condition.  The most frequently used constraint qualification condition is that the gradient of the active constraint terms should be linearly independent (sometimes known as LICQ: Linearly Independent Constraint Qualification).
+
+The second derivative test in the inequality constrained case is basically the same as the test in the equality constrained case.
+
+### Physical interpretation {.unnumbered}
+
+A physical picture is often a useful device for remembering the stationarity conditions for optimization problems.
+In the unconstrained case, we can think about solving a minimization problem by rolling a tiny ball down hill until it came to rest.
+If we wanted to solve a constrained minimization problem, we could build a wall between the feasible and the infeasible region.
+A ball rolling into the wall can roll freely in directions tangent to the wall (or away
+from the wall) if those directions were downhill;
+at a constrained miminizer, the force pulling the ball downhill is perfectly balanced against an opposing force pushing into the feasible region in the direction of the normal to the wall.
+If the feasible region is $\{x : c(x) \leq 0\}$, the normal direction pointing inward at a
+boundary point $x_*$ s.t.~$c(x_*) = 0$ is proportional to $-\nabla c(x_*)$.
+Hence, if $x_*$ is a constrained minimum, we expect the sum of the ``rolling downhill'' force ($-\nabla \phi$) and something proportional to $-\nabla c(x_*)$ to be zero:
 $$
-  \delta [f(x)] = \operatorname{diag}(\phi'(x_1), \ldots, \phi'(x_n))
-  \, \delta x.
+  -\nabla \phi(x_*) - \mu \nabla c(x_*) = 0.
 $$
+The Lagrange multiplier $\mu$ in this picture represents the magnitude of the restoring force from the wall balancing the tendency to roll downhill.
+
+### Convexity {.unnumbered}
+
+A function $\phi : \bbR^n \rightarrow \bbR$ is *convex* if for any distinct $x, y \in \bbR^n$ and for all $\alpha \in (0, 1)$
+$$
+  \phi\left(\alpha x + (1-\alpha)y\right) \geq \alpha \phi(x) + (1-\alpha) \phi(y).
+$$
+We say $\phi$ is *strictly convex* if the inequality is strict.
+
+A subset $\Omega \subset \mathbb{R}^n$ (or, more generally, a subset of a vector space) is said to be convex if for any $x, y \in \Omega$ and all $\alpha \in (0,1)$, the points $\alpha x + (1-\alpha) y$ lie in $\Omega$.  We say $\Omega$ is strictly convex if the points $\alpha x + (1-\alpha) y$ lie in the interior of $\Omega$.  Convex sets are closed under intersection and direct sum.
+
+The definition of a convex set is arguably fundamental than the notion of a convex function, as we often express arguments about the latter in terms of the former via the *epigraph* of the function.  
+The epigraph (or *supergraph* of a function $\phi : \bbR^n \rightarrow \bbR$ is the set on or above the graph of $phi$, i.e.
+$$
+  \operatorname{epi}(\phi) = \{ (x,y) \in \bbR^n \times \bbR : y \geq f(x) \}.
+$$
+A function $\phi$ is convex iff the epigraph is a convex set.
+
+If $\Omega$ is a convex set and $x \in \Omega$ is a boundary point, then there is a *supporting hyperplane* at $x$ defined by a functional $w_*$ such that $y \in \Omega \implies w_* (y-x) \geq 0$.
+In the case of a strictly convex set, the equality can only hold when $y = x$.
+For functions $\phi$, this means that there is some dual vector $w$ such that for all $z$,
+$$
+  \phi(x+z) \geq \phi(x) + w^* z,
+$$
+and for a strictly convex function, equality only holds when $z = 0$.
+When $\phi$ is differentiable, $w^* = \phi'(x)$.
+At points where $\phi$ is not differentiable, there will often be several possible choices for $w$.
+The collection of such choices makes up the *subgradient* at $x$.
+For convex functions, we generalize the notion of a stationary point to mean "point $x$ at which the subgradient contains zero, i.e. $\phi(x+z) \geq \phi(x)$."
+
+Convex functions are particularly nice for optimization.
+A convex function does not need to have a minimum or a maximum on a convex set
+(for example the exponential function on the real line has neither).
+But if $\phi$ is convex and we consider optimization over a conves set $\Omega$, then
+
+- an interior point is a minimizer iff it is a stationary point;
+- all minimizers are global minimizers; 
+- the set of all minimizers is convex;
+
+If $\phi$ is strictly convex, then there is at most one global minimizer.
+
+For functions that are twice differentiable, convexity just means that the Hessian matrix is positive semidefinite everywhere.  But many important nonsmooth functions are also convex.
+For example, norms must be convex, but cannot be differentiable.
 
 ## Metric spaces
 
@@ -204,7 +452,7 @@ A *contraction mapping* $G : \Omega \rightarrow \Omega$ is a Lipschitz function 
 We sat the map $G$ is *locally contractive* near $x$ if it is Lipschitz with constant $\alpha < 1$ in some local neighborhood of $x$.
 Contraction mappings are a useful tool both for showing the existence and uniqueness of solutions to systems of equations (or optimization problems) and for constructing algorithms to find such solutions.
 
-### Banach fixed point theorem
+### Banach fixed point theorem {.unnumbered}
 
 Assuming $\Omega$ is a closed subset of a Banach space[^banach-vs-metric], then $G$ has a unique fixed point $x_* \in \Omega$, i.e. a unique point such that $G(x_*) = x_*$.
 This fact is variously called the *contraction mapping theorem* and the *Banach fixed point theorem*.
@@ -238,7 +486,7 @@ $$
 
 [^banach-vs-metric]: The Banach fixed point theorem applies to any complete metric space.  But all the examples in this class will be closed subsets of Banach spaces, so we will stick to that setting.
 
-### Local convergence
+### Local convergence {.unnumbered}
 
 Now suppose that $G$ has a fixed point $x_*$, and $\|G'(x)\| \leq \alpha < 1$ over some closed ball $\bar{B}_{\rho}(x_*) = \{x : \|x-x_*\| \leq \rho\}$.  Then
 $$
@@ -246,7 +494,7 @@ $$
 $$
 and so $G$ maps the ball into itself.  Therefore, $G$ is a contraction mapping on $\bar{B}_\rho(x_*)$, and fixed point iteration from any starting point in that ball will converge to the unique fixed point $x_*$ within the ball.
 
-### Preventing escape
+### Preventing escape {.unnumbered}
 
 The contraction mapping theorem is useful both for telling us that a fixed point exists and is unique, and for giving us an iteration that converges to that fixed point.
 But sometimes it is difficult to get *global* contractivity.

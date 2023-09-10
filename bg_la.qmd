@@ -533,6 +533,12 @@ There are a variety of types of maps that are of interest in linear algebra, all
 - *Sesquilinear forms* mapping $\calU \times \calV \rightarrow \bbC$ that are linear in the first argument and antilinear in the second argument.  An important special case is *Hermitian* forms $a : \calV \times \calV \rightarrow \bbC$ such that $a(u,v) = \overline{a(v,u)}$.
 - *Quadratic forms* mapping $\calV \rightarrow \bbR$.  These are homogeneous of degree 2, i.e. if $\phi : \calV \rightarrow \bbR$ is a quadratic form, then $\phi(\alpha v) = |\alpha|^2 \phi(v)$.
 
+Bilinear forms (over a real space) and sesquilinear forms (over an complex space) can be also be thought of as linear or antilinear maps into the dual space, i.e.
+$$
+  v \in \mathcal{V} \mapsto w^* \in \mathcal{U}^* \mbox{ via } w^* u = a(u, v).
+$$
+In an inner product space, we can define a linear map from $\mathcal{V}$ to $\mathcal{U}^*$ by composing this map with the map from $\mathcal{U}^*$ to $\mathcal{U}$ via the Riesz representation theorem.
+
 Each of these types of linear algebraic objects can be represented as a matrix via a choice of basis.  Suppose $U$ and $V$ are basis quasi-matrices for the vector spaces $\calU$ and $\calV$ with $u = Uc$ and $v = Vd$.  Then we have the following matrix representations
 
 - *Linear maps*: If $L : \calU \rightarrow \calV$ and $v = Lu$ then $d = Ac$ where $A = V^{-1} L U$.
@@ -571,6 +577,31 @@ where each submatrix $A_{ij}$ corresponds to the "piece" of the mapping $L$ from
 
 We can similarly partition matrices associated with other types of maps.
 In the case of operators and quadratic forms (or symmetric or Hermitian forms), sensible partitionings of the associated matrices generally yield diagonal blocks.
+
+## Schur complements
+
+Suppose $L : \calU \rightarrow \calU$ is an operator on a vector space and $\calU = \calU_1 \oplus \calU_2$ is a decomposition of $\calU$ into a direct sum of subspaces.  Then we have the block representation of the operator as
+$$
+  L = \begin{bmatrix} L_{11} & L_{12} \\ L_{21} & L_{22} \end{bmatrix}.
+$$
+If $L$ is invertible, we can similarly write the inverse in block form as
+$$
+  L^{-1} = \begin{bmatrix} M_{11} & M_{12} \\ M_{21} & M_{22} \end{bmatrix}
+$$
+Assuming $L_{11}$ is invertible, we can write the block factorization:
+$$
+  L = 
+  \begin{bmatrix} I & 0 \\ L_{21} L_{11}^{-1} & I \end{bmatrix}
+  \begin{bmatrix} L_{11} & L_{12} \\ 0 & L_{22} - L_{21} L_{11}^{-1} L_{12} \end{bmatrix},
+$$
+and by forward and backward substitution we have that $M_{22} = S^{-1}$ where
+$$
+  S = L_{22} - L_{21} L_{11}^{-1} L_{12}
+$$
+is the *Schur complement* of $L_{11}$ in $L$.
+
+Because they arise naturally in the process of algorithms like Gaussian elimination, Schur complements play an important role in numerical methods for solving linear systems.
+But Schur complements are also important in various non-numerical settings, such as in Bayesian statistics, where conditioning a multivariate Gaussian prior on linear measurements yields a multivariate Gaussian posterior distribution whose covariance is a Schur complement in the prior covariance.
 
 ## The canonical forms
 
@@ -708,3 +739,108 @@ What of bilinear and sesquilinear forms?
 For these functions, the appropriate canonical forms are essentially the same as those that we have already described.
 In the case of real symmetric bilinear or complex Hermitian sesquilinear forms, there is an associated quadratic form $\phi(v) = a(v,v)$, and the canonical form of the bilinear/sesquilinear form is the same as the canonical form for the quadratic form.
 In the case of bilinear or sesquilinear forms on two different spaces, the appropriate canonical form is the same as for a linear map.
+
+## Important invariants
+
+The canonical forms of different maps that appear in linear algebra reveal important invariants of the maps that do not depend on the specific matrix representation.
+These include the rank of a linear map and the inertia of a quadratic form, but also the singular values and the eigenvalues (and their geometric and algebraic multiplicities).
+However, sometimes we want invariants that are simpler (and maybe easier to compute with than singular values and eigenvalues).
+We might also want invariants that are continuous under small changes to the map, which the rank, inertia, and eigenvalue multiplicities generally are not.
+In this section, we review a few additional invariants that see common use.
+
+### Invariant norms {.unnumbered}
+
+A matrix norm is said to be *unitarily invariant* if for any matrix $A$ and unitary matrices $U$ and $V$ of appropriate dimension, $\|A\| = \|U^* A\| = \|AV\|$.  Such matrix norms characterize a linear mapping between inner product spaces, independent of the specific orthonormal basis chosen.  Therefore, any unitarily invariant norm on a matrix space must depend only on the singular values of the matrix.
+
+The *Schatten $p$-norm* on a matrix space is defined in terms of the $p$-norm on the vector of singular values, i.e.
+$$
+  \left( \sum_{i=1}^n \sigma_i^p \right)^{1/p}.
+$$
+The three most frequently used Schatten norms are:
+
+- $p = 2$: The *Frobenius norm* $\|A\|_F = \sqrt{\sum_{i=1}^n \sigma_i^2}$.  The Frobenius norm can also be written as the two-norm of the vector of coefficients, i.e. $\|A\|_F = \sqrt{\sum_{i,j} |a_{ij}|^2}$.
+- $p = \infty$: The *spectral norm* $\|A\|_2 = \sigma_1$.  This is the same as the operator norm induced by the vector 2-norm(s).
+- $p = 1$: The *nuclear norm* $\|A\|_* = \sum_{j=1}^n \sigma_j$ (also sometimes called the *trace norm*).  When $A$ is positive semi-definite, the nuclear norm is equal to $\tr(A) = \sum_i a_{ii}$.
+
+We often use the Frobenius norm to measure the distance between data matrices and the spectral norm when considering the error in approximating a linear map.
+The nuclear norm appears somewhat less frequently, but plays an important role in methods for finding low-rank solutions to optimization problems over matrix spaces.
+
+The *Ky Fan $k$-norm* on a matrix spaces is the sum of the largest $k$ singular values.  The most frequent examples are $k = 1$ (the spectral norm) and $k = n$ (the nuclear norm).
+
+### Stable rank {.unnumbered}
+
+There are many times when we would like a low-rank approximate solution to some matrix equation or optimization problem.
+However, this is computationally awkward, as the rank is not a continuous function of the matrix entries!
+A useful continuous lower bound on the rank of a matrix is the *stable rank*:
+$$
+  \|A\|_F^2 / \|A_2\|^2 = \sum_{j=1}^n \left( \frac{\sigma_i}{\sigma_1} \right)^2.
+$$
+If the matrix $A$ has orthonormal columns (if tall and skinny) or rows (if short and fat), then the stable rank agrees with the rank.  Many of the bounds on randomized algorithms for low-rank approximation of matrices are posed in terms of the stable rank.
+
+### Spectral invariants {.unnumbered}
+
+Unitarily invariant norms and the stable rank can all be phrased in terms of singular values, and so can be viewed as intrinsic properties of an underlying linear map between two inner product spaces.
+It is also useful to consider *spectral invariants* of an operator from a vector space to itself, which we can express in terms of the eigenvalues.
+
+One invariant that occurs frequently is the *spectral radius*.  If $\Lambda(A)$ denotes the spectrum of $A$, then
+$$
+  \rho(A) = \max_{\lambda \in \Lambda(A)} |\lambda|.
+$$
+Let $v$ be aany unit-length eigenvector associated with the largest modulus eigenvalue; then for any consistent matrix norm,
+$$
+  \|A\| \geq \|Av\| = \|\lambda v\| = |\lambda| = \rho(A).
+$$
+Therefore, the spectral radius is bounded from above by any consistent matrix norm.  Conversely, at least in a finite-dimensional space, for any $\epsilon > 0$ there exists a vector space norm such that the associated operator norm satisfies
+$$
+  \rho(A) \leq \|A\| \leq \rho(A) + \epsilon.
+$$
+We can actually get equality if no maximal modulus eigenvalue is associated with a nontrivial Jordan block.
+
+Many spectral invariants are expressed via the *characteristic polynomial*
+$$
+  p(z) = \prod_{i=1}^n (z-\lambda_i)
+$$
+where the $\lambda_i$ are the eigenvalues of the operator (with multiplicity).
+Written in the monomial basis, the characteristic polynomial is
+\begin{align}
+  p(z) 
+  &= z^n - \left( \sum_i \lambda_i \right) z^{n-1} + \ldots + (-1)^n \prod_i \lambda_i \\
+  &= z^n - \tr(A) + \ldots + (-1)^n \det(A).
+\end{align}
+The coefficients of the characteristic polynomial are *symmetric polynomials* of the eigenvalues (i.e. polynomials of $n$ variables that are invariant under permutation of the inputs).
+By far the most important of these are the *trace* $\tr(A)$ and the *determinant* $\det(A)$.
+Because the eigenvalues of $zI - A$ are equal to $z - \lambda_i$, we can also write the characteristic polynomial in terms of the determinant, i.e. $p(z) = \det(zI-A)$.
+
+The trace and the determinant have a variety of useful properties.  The trace is a linear function of the entries of the matrix representation, and can be written as the diagonal sum, i.e.
+$$
+  \tr(A) = \sum_i a_{ii}.
+$$
+When the dimensions make sense, the trace is invariant under cyclic permutations of matrix products; that is, if $A \in \bbC^{m \times n}, B \in \bbC^{n \times p}, C \in \bbC^{p \times m}$, we have
+$$
+  \tr(ABC) 
+  = \sum_{i,j,k} a_{ij} b_{jk} c_{ki}
+  = \sum_{i,j,k} c_{ki} a_{ij} b_{jk}
+  = \tr(CAB)
+$$
+and similarly $\tr(ABC) = \tr(BCA)$.  On the matrix space $\mathbb{C}^{m \times n}$, we can define *Frobenius inner product* (the analogue of the standard inner product) in terms of the trace:
+$$
+  \langle X, Y \rangle_F = \sum_{i,j} x_{ij} y_{ij}^* = \tr(Y^* X) = \tr(XY^*).
+$$
+
+The determinant is not linear, but it is a *homomorphism* from operators to the complex numbers, i.e.
+$\det(AB) = \det(A) \det(B)$ and $\det(I) = 1$.
+The determinant also satisfies $\det(A^*) = \det(A)^*$.
+Like the trace, the determinant can be written in terms of the entries of the matrix representation without direct reference to the eigenvalues.
+Perhaps the most common way that determinants are taught in introductory classes is with the *Laplace formula* (or cofactor expansion)
+$$
+  \det(A) = \sum_i (-1)^{i+1} a_{1i} m_{1i}
+$$
+where $m_{1i}$ is the determinant of the $i$th minor (the matrix with column 1 and row $i$ removed).
+Unfortunately, naively using the Laplace formula to compute derivatives yields an $O(n!)$ time algorithm, and alternate methods are usually used for $n$ larger than two or three.
+
+Using the Laplace expansion, we find that the determinant of an upper triangular matrix $U$ (in which all subdiagonal elements are zero) is equal to the product of the diagonal entries, i.e. $\det(U) = \prod_{j=1}^n u_{jj}$.
+The determinant of a lower triangular matrix is similarly the product of the diagonal entries.
+Using these facts, we generally compute determinants[^det-as-bad-idea] by factoring the matrix as a product of triangular or unitary matrices.
+Geometrically, these factorizations correspond to using volume-preserving transformations (shear transforms or rotations) to transform a parallelipiped defined by the columns of $A$ into an axis-aligned parallelipiped where we can apply the generalization of "base times width times height" formulas from high school geometry.
+
+[^det-as-bad-idea]: Determinants are used to represent (signed) volumes, and it is appropriate to compute them in settings like the change of variables formula for integration, or for transformation of probability distribution functions. Most other applications of determinants from linear algebra (Cramer's rule for solving linear systems, computation of determinants to check for singularity, etc) are best avoided for numerical computation -- they lead to algorithms that are inefficient, unstable, or both.
