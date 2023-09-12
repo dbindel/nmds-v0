@@ -1,0 +1,540 @@
+# Factorizations for Least Squares
+
+::: {.content-hidden unless-format="html"}
+{{< include _common.tex >}}
+:::
+
+```{julia}
+#| echo: false
+using LinearAlgebra
+using Plots
+using QuadGK
+using Markdown
+```
+
+Though there are a number of variants, there are three primary direct methods for solving well-posed least squares problems:
+
+- Via Cholesky on the Gram matrix $A^T A$
+- Via QR factorization of $A$
+- Via the SVD of $A$
+
+While each approach has its own pros and cons, roughly speaking we have ordered these methods in increasing order of work and also in increasing order of numerical stability.
+
+## Cholesky factorization
+
+If $A \in \bbR^{m \times n}$ is full column rank, the Gram matrix $H = A^T A$ admits a *Cholesky factorization*
+$$
+  H = R^T R
+$$
+where $R$ is an invertible upper triangular matrix[^rtr-vs-llt].
+Unless $H$ has usable data sparsity, Cholesky factorization of $H$ takes $O(n^3)$ time.
+
+[^rtr-vs-llt]: Cholesky factorization is sometimes written $R^T R$ for upper triangular $R$, and sometimes $LL^T$ for lower triangular $L$.  The two are equivalent -- just set $L = R^T$.
+
+### Least squares solve {.unnumbered}
+
+Given the Cholesky factorization $A^T A = R^T R$, we can write $x = A^\dagger B$ as
+$$
+  x = (A^T A)^{-1} A^T b = (R^T R)^{-1} A^T b = R^{-1} R^{-T} A^T b.
+$$
+Typically, the most efficient way to compute this expression is in the form
+$$
+  x = R^{-1} (R^{-T} (A^T b)).
+$$
+In Julia code, we could write this as
+```{julia}
+#| output: false
+function chol_ls_solve(A, B)
+    F = cholesky(Symmetric(A'*A))
+    F\(A'*B)
+end
+```
+We could equivalently write the second line of `chol_ls_solve` as `F.U\(F.U'\(A'*B))`.
+Note that `F.U` gives us the upper triangular Cholesky factor ($R$) as an `UpperTriangular` view type.
+Julia knows that solves with triangular matrices can be done efficiently with forward or backward substitution, and this is the algorithm used by backslash with `F.U` or `F.U'`.
+A backslash with the factorization object does both the forward and the backward substitution.
+
+Again, it is worth sanity-checking whenever we provide code.  In this case, we generate a random test problem and check that $\|A^T (AX-B)\|_F/\|A^T B\|_F$ is small.
+```{julia}
+function ls_test_setup(m, n, p)
+    A = randn(m, n)
+    X = rand(n, p)
+    B = A*X + 1e-2 * randn(m, p)
+    A, B, X
+end
+
+let
+  A, B, Xref = ls_test_setup(10, 5, 2)
+  X = chol_ls_solve(A, B)
+  norm(A'*(A*X-B))/norm(A'*B)
+end
+```
+
+If $A \in \bbR^{m \times n}$ and $B \in \bbR^{m \times p}$, the cost of this code is $O(mn^2 + mnp)$, where the first term comes from forming $H$ and computing the Cholesky factorization and the second term comes from forming $A^T B$ and applying the $p$ triangular solves.
+
+### Existence and computation {.unnumbered}
+
+The proof that Cholesky factorizations exist is the same as the algorithm used to compute them.
+We proceed by induction on the dimension of $H$.  For $n = 1$, a 1-by-1 positive definite matrix is just a positive number, and the Cholesky factorization is the square root of that number.  For $n > 1$, consider a block 2-by-2 partitioning of $H$ and write the equations a Cholesky factorization would have to satisfy
+$$
+  \begin{bmatrix} H_{11} & H_{12} \\ H_{12}^T & H_{22} \end{bmatrix} =
+  \begin{bmatrix} R_{11}^T & 0 \\ R_{12}^T & R_{22}^T \end{bmatrix}
+  \begin{bmatrix} R_{11} & R_{12} \\ 0 & R_{22} \end{bmatrix}.
+$$
+This gives us the equations
+\begin{align}
+  H_{11} &= R_{11}^T R_{11} \\
+  H_{12} &= R_{11}^T R_{12} \\
+  H_{22} &= R_{12}^T R_{12} + R_{22}^T R_{22}.
+\end{align}
+Because $H_{11}$ is a submatrix of a positive definite matrix, it is also positive definite, and therefore has a Cholesky factorization by the induction hypothesis.
+The $R_{11}$ matrix is an invertible triangular matrix, so we can rewrite the second equation as $R_{12} = R_{11}^{-T} H_{12}$, which we can compute just using triangular solves.
+Finally, we can rewrite the last equation as
+$$
+  R_{22}^T R_{22} = H_{22} - R_{12}^T R_{12} = H_{22} - H_{12}^T H_{11}^{-1} H_{12}.
+$$
+The last expression is the expression for a Schur complement, which is an inverse of a submatrix of the inverse of $H$:
+$$
+  \left( [H^{-1}]_{22} \right)^{-1} = H_{22} - H_{12}^T H_{11}^{-1} H_{12}.
+$$
+Because diagonal submatrices of positive definite matrices are positive definite and inverses of positive definite matrices are positive definite, the Schur complement is a positive definite matrix, and therefore admits a factorization by the induction hypothesis.
+
+Fast Cholesky factorization codes use a *blocking* strategy suggested by the proof.  For matrices smaller than some block size $b$, one eliminates one variable at a time:
+```{julia}
+#| output: false
+function simple_chol(H)
+    R = copy(H)
+    n = size(H)[1]
+    for j = 1:n
+
+        # Overwrite row j of H with row j of R
+        R[j,j] = sqrt(R[j,j])
+        R[j,j+1:n] /= R[j,j]
+
+        # Schur complement update to process rest
+        R[j+1:n,j+1:n] -= R[j,j+1:n]*R[j,j+1:n]'
+
+    end
+    UpperTriangular(R)
+end
+```
+
+Let us run a basic sanity check on this implementation:
+```{julia}
+let
+   A = randn(10,5)
+   H = A'*A
+   H = (H+H')/2         # Restore symmetry lost to roundoff
+   R = simple_chol(H)   # Run our toy Cholesky
+   norm(R'*R-H)/norm(H) # Check small relative error in R'R = H
+end
+```
+
+For larger matrices, we use an algorithm like `simple_chol` to process one diagonal submatrix at a time, then do a big update to a block row and a big Schur complement update.
+These operations involve large matrix-matrix operations that can be done relatively efficiently on modern machines.
+The efficient implementation of Cholesky factorization in Julia can be accessed with the [`cholesky`](https://docs.julialang.org/en/v1/stdlib/LinearAlgebra/#LinearAlgebra.cholesky) function.
+
+### Iterative refinement {.unnumbered}
+
+While solving the normal equations via Cholesky is perfectly reasonable in exact arithmetic, it suffers some mild numerical difficulty when $A$ is moderately ill-conditioned, i.e. when the $\sigma_1(A)/\sigma_n(A)$ is large.
+However, we can partially remedy this problem by "cleaning up" the solution, a process known as *iterative refinement*.
+
+The idea of iterative refinement is that if $\hat{x}$ is an approximate solution to the least squares problem computed by a slightly inaccurate algorithm, then the true solution satisfies
+$$
+  x = A^\dagger b = \hat{x} + A^\dagger (b-A \hat{x}),
+$$
+and therefore -- assuming we can compute a reasonably accurate residual -- we can compute an correction with our same slightly-inaccurate algorithm in order to get a solution that is more accurate overall.
+Often only a single step is needed to restore as much accuracy as we can reasonably hope for.
+We note that a step of iterative refinement is slightly cheaper than the original solve, as need only form and factor the Gram matrix once.
+
+```{julia}
+let
+    # Set up mildly ill-conditioned test problem
+    A = qr(randn(20,6)).Q[:,1:6] * 
+        Diagonal(20.0.^-(1:6)) * 
+        qr(randn(6,6)).Q
+    xref = randn(6)
+    b = A*xref
+
+    # First least squares solve and record relative error
+    F = cholesky(Symmetric(A'*A))
+    x = F\(A'*b)
+    errs = [norm(x-xref)/norm(xref)]
+
+    # Correction solve and record relative error
+    for k = 1:2
+        r = b-A*x
+        x += F\(A'*r)
+        push!(errs, norm(x-xref)/norm(xref))
+    end
+
+    # Report relative errors at each step
+    errs
+end
+```
+
+## QR factorization
+
+A QR factorization of $A \in \bbR^{m \times n}$ for $m > n$ is
+$$
+  A = \begin{bmatrix} Q_1 & Q_2 \end{bmatrix} \begin{bmatrix} R \\ 0 \end{bmatrix} = Q_1 R
+$$
+where $Q$ is an orthogonal matrix and $R$ is upper triangular.
+The version involving the square $Q$ matrix is sometimes called the "full QR" decomposition,
+while the version involving the rectangular $Q_1$ matrix is the "economy QR."
+There are several possible ways to compute the QR decomposition (full or economy).
+The basic building block that we will use most frequently is the Householder QR algorithm, but for completeness we also discuss two others.
+
+### Least squares via QR {.unnumbered}
+
+Consider the decomposition
+$$
+  A = \begin{bmatrix} Q_1 & Q_2 \end{bmatrix} \begin{bmatrix} R \\ 0 \end{bmatrix}.
+$$
+Using invariance of the two norm under orthogonal transformations and the Pythagorean theorem, we have
+\begin{align}
+  \|Ax-b\|^2 &= \|Q^T Ax - Q^T b\|^2 \\
+  &= \left\| \begin{bmatrix} R x - Q_1^T b \\ -Q_2^T b \end{bmatrix} \right\|^2 \\
+  &= \| Rx-Q_1^T b\|^2 + \|Q_2^T b\|^2.
+\end{align}
+The last line involves a sum of a term that we can set to zero with $x = R^{-1} Q_1^T b$ and a term that is independent of $x$.
+Therefore, the solution to the least squares problem in terms of the QR factorization is
+$$
+  x = R^{-1} Q_1^T b = A^\dagger b.
+$$
+
+In Julia (and MATLAB, Octave, and Python), the QR factorization computed via Householder transformations is the standard approach for solving least squares problems.
+In code, we could write this in several different ways:
+```{julia}
+let
+    # Set up a test least squares problem
+    A = randn(10,5)
+    b = A*rand(5) + 1e-2 * randn(10)
+
+    # Compute the QR factorization object
+    F = qr(A)
+
+    # Different ways to solve
+    x1 = A\b   # Use implicitly computed QR factorization
+    x2 = F\b   # Use explicitly computed QR factorization
+    x3 = F.R\(F.Q[:,1:5]'*b)  # Use the Q and R factors explicitly
+
+    # Report relative differences
+    norm(x2-x1)/norm(x1), norm(x3-x1)/norm(x1)
+end
+```
+We recommend simply writing `A\b` if there is only one least squares problem involving $A$.
+If there are likely to be multiple such problems, the recommended approach is to use `F\b` where `F` is the factorization object.
+
+### QR via normal equations {.unnumbered}
+
+Given a Cholesky factorization of the Gram matrix
+$$
+  A^T A = R^T R,
+$$
+we note that the matrix $AR^{-1}$ has orthonormal columns:
+$$
+  (AR^{-1})^T (AR^{-1}) = R^{-T} A^T A R^{-1} = R^{-T} R^T R R^{-1} = I.
+$$
+Hence, one method of computing the QR decomposition is to compute the Cholesky decomposition of the Gram matrix and then form $A R^{-1}$:
+```{julia}
+let
+    A = rand(10,5)
+
+    # Compute economy QR via Cholesky of the Gram matrix
+    R = cholesky(Symmetric(A'*A)).U
+    Q1 = A/R
+
+    # Check orthogonality of columns of Q1 and whether A = QR
+    norm(Q1'*Q1-I), norm(A-Q1*R)/norm(A)
+end
+```
+
+This computation shows an important relationship between the QR decomposition and the normal equations approach.
+In particular, it shows that the $R$ appearing in the QR factorization and the Cholesky factor $R$ in the latter approach are essentially[^qr-cholesky-up-to-scaling] the same.
+However, we do not recommend this as the main way of computing the QR factorization in most cases.
+It has no particular stability advantages over the normal equations approach; and if you are going to compute the Cholesky factorization of the Gram matrix, you may as well just use it to solve the normal equations without forming $Q_1$.
+
+One place where there is an "in-between" behavior is in very large and sparse least squares problems.
+Depending on the nonzero structure of the matrix, it may be reasonable to compute a "Q-less" QR factorization in which a (sparse) $R$ factor is formed explicitly, but $Q$ is not.
+Then one can use $R$ from the QR factorization in the formula $x = R^{-1} (R^{-T} (A^T b))$ described in the previous section, often together with an iterative refinement step.
+
+[^qr-cholesky-up-to-scaling]: The $R$ factor in QR is only unique up to the signs of the rows of $R$ (and columns of $Q$). In the Cholesky factorization algorithm, we typically choose a positive square root for the diagonal entries.  In the QR factorization, there is no requirement that the diagonal entries of $R$ by normalized. 
+
+### Gram-Schmidt {.unnumbered}
+
+The *classical Gram-Schmidt process* is the first version of QR factorization that most students learn, though they typically don't learn it as a matrix factorization.  The code computes
+\begin{align}
+  \tilde{q}_j &= a_j - \sum_{i=1}^{j-1} q_i r_{ij}, & r_{ij} = q_i^T a_j \\
+  q_j &= \tilde{q}_j/r_{jj}, & r_{jj} = \|\tilde{q}_j\|
+\end{align}
+```{julia}
+#| output: false
+function cgs_qr(A)
+    m, n = size(A)
+    Q = copy(A)
+    R = zeros(n, n)
+    for j = 1:n
+        for k = 1:j-1
+            R[k,j] = Q[:,k]'*A[:,j]
+            Q[:,j] -= Q[:,k]*R[k,j]
+        end
+        R[j,j] = norm(Q[:,j])
+        Q[:,j] /= R[j,j]
+    end
+    Q, R
+end
+```
+The *modified* Gram-Schmidt process computes $\tilde{q}_j$ in a slightly different way, effectively using the formula
+$$
+  r_{ij} = q_i^T \left( a_j - \sum_{k=1}^{i-1} q_k r_{jk} \right).
+$$
+Because $q_i^T q_k = 0$ for $k < i$, the change to the formula has no effect in exact arithmetic,
+and the code literally changes only by one character.
+```{julia}
+#| output: false
+function mgs_qr(A)
+    m, n = size(A)
+    Q = copy(A)
+    R = zeros(n, n)
+    for j = 1:n
+        for k = 1:j-1
+            R[k,j] = Q[:,k]'*Q[:,j]
+            Q[:,j] -= Q[:,k]*R[k,j]
+        end
+        R[j,j] = norm(Q[:,j])
+        Q[:,j] /= R[j,j]
+    end
+    Q, R
+end
+```
+
+```{julia}
+#| output: asis
+#| echo: false
+let
+    A = qr(randn(20,6)).Q[:,1:6] * 
+        Diagonal(20.0.^-(1:6)) * 
+        qr(randn(6,6)).Q
+    Q0, R0 = qr(A)
+    Q1, R1 = cgs_qr(A)
+    Q2, R2 = mgs_qr(A)
+md"""
+For a moderately ill-conditioned problem, the relative residuals $\|A-QR\|_F/\|A_F\|$ are about the same for classical Gram-Schmidt (CGS), modified Gram-Schmidt (MGS), and the Householder QR implemented in Julia:
+
+- CGS: $(norm(A-Q1*R1)/norm(A))
+- MGS: $(norm(A-Q2*R2)/norm(A))
+- Householder: $(norm(A-Q0*R0)/norm(A))
+
+The problem with the Gram-Schmidt process is not the reconstruction error; it is that in floating point, the basis vectors tend to lose orthogonality when $A$ is not well conditioned.
+We measure the loss of orthogonality by $\|Q^T Q - I\|_F$.
+For our moderately ill-conditioned problem, we can see a significant loss of orthogonality in classical Gram-Schmidt, a moderate loss for modified Gram-Schmidt, and almost no loss for Householder QR.
+
+- CGS: $(norm(Q1'*Q1-I))
+- MGS: $(norm(Q2'*Q2-I))
+- Householder: $(norm(Q0[:,1:6]'*Q0[:,1:6]-I))
+"""
+end
+```
+
+Because the modified Gram-Schmidt behaves so much better, classical Gram-Schmidt is rarely used in numerical methods.
+However, there are some circumstances where modified Gram-Schmidt is a reasonable option, particularly in the construction of Krylov subspace methods for solving linear systems and least squares problems or for computing eigenpairs of large matrices.
+The influence of loss of orthogonality in these algorithms is subtle, and sometimes causes real issues; when it does, an iterative-refinement-like process called reorthogonalization sometimes provides a remedy.
+
+### Householder QR {.unnumbered}
+
+One way of expressing the Gaussian elimination algorithm is in terms of Gauss transformations that serve to introduce zeros into the lower triangle of a matrix.
+*Householder* transformations are orthogonal transformations (reflections) that can be used to similar effect.
+Reflection across a plane orthogonal to a unit vector $v$ can be expressed as
+$$
+  H = I-2vv^T,
+$$
+More generally, we can write for any nonzero $w$ a reflector of the form
+$$
+  H = I-\tau ww^T, \quad \tau = 2/\|w\|^2;
+$$
+in this way, we can choose $w$ to be something other than unit length.  A typical choice is to normalize $w$ so that the first nonzero component is 1.
+
+Now suppose we are given a vector $x$ and we want to find a reflection that transforms $x$ into a direction parallel to some unit vector $y$.
+The right reflection is through a hyperplane that bisects the angle between $x$ and $y$, which we can construct by taking the hyperplane normal to $x-\|x\|y$.
+That is, letting $u = x - \|x\|y$ and $v = u/\|u\|$, we have
+\begin{align}
+  (I-2vv^T)x
+  & = x - 2\frac{(x+\|x\|y)(x^T x + \|x\| x^T y)}{\|x\|^2 + 2 x^T y \|x\| + \|x\|^2 \|y\|^2} \\
+  & = x - (x-\|x\|y) \\
+  & = \|x\|y.
+\end{align}
+If we use $y = \pm e_1$, we can get a reflection that zeros out all but the first element of the vector $x$ (see @fig-reflector-construction).
+So with appropriate choices of reflections, we can take a matrix $A$ and zero out all of the subdiagonal elements of the first column.
+
+```{julia}
+#| label: fig-reflector-construction
+#| echo: false
+#| fig-cap: Construction of a Householder reflector.
+let
+    x = [2; 1]
+    nx = norm(x)
+    u = [2-nx; 1]
+    v = u/norm(u)
+    t = [v[2]; -v[1]]
+    plot([0, 2], [0, 1], linecolor=:black, label=false, arrow=true, aspect_ratio=:equal)
+    plot!([0, nx], [0, 0], linecolor=:black, label=false, arrow=true)
+    plot!([nx, 2], [0, 1], linecolor=:black, linestyle=:dash, arrow=true, legend=false)
+    plot!([-0.5*t[1], 3.0*t[1]], [-0.5*t[2], 3.0*t[2]])
+    annotate!((nx/2, -0.07, "\$||x|| e_1\$"))
+    annotate!((0.95, 0.55, "\$x\$"))
+    annotate!((2.4, 0.8, "\$x-||x|| e_1\$"))
+end
+```
+
+While we use the choice $x - \|x\| e_1$ in @fig-reflector-construction in order to make the picture compact, in computation we usually prefer to use choose $x + \|x\| e_1$ when the sign of $x_1$ is positive, in order to minimize the amplification of rounding error by cancellation.
+Alternatively, one can use an alternate formula for the updated first entry.
+
+Now think about applying a sequence of Householder transformations to introduce subdiagonal zeros into $A$, just as one uses a sequence of Gauss transformations to introduce subdiagonal zeros in Gaussian elimination.
+For example, to reduce a 4-by-3 matrix using Householder transformations, we schematically would have
+\begin{align}
+  \left(I - \tau_1
+    \begin{bmatrix} 1 \\ w_{21} \\ w_{31} \\ w_{41} \end{bmatrix}
+    \begin{bmatrix} 1 & w_{21} & w_{31} & w_{41} \end{bmatrix} 
+  \right) 
+  \begin{bmatrix} 
+    \times & \times & \times \\
+    \times & \times & \times \\
+    \times & \times & \times \\
+    \times & \times & \times
+  \end{bmatrix} = 
+  \begin{bmatrix} 
+    r_{11} & r_{12} & r_{13} \\
+    0 & * & * \\
+    0 & * & * \\
+    0 & * & *
+  \end{bmatrix}
+  \\
+  \left(I - \tau_2
+    \begin{bmatrix} 0 \\ 1 \\ w_{32} \\ w_{42} \end{bmatrix}
+    \begin{bmatrix} 0 & 1 & w_{32} & w_{42} \end{bmatrix} 
+  \right) 
+  \begin{bmatrix} 
+    r_{11} & r_{12} & r_{13} \\
+    0 & \times & \times \\
+    0 & \times & \times \\
+    0 & \times & \times
+  \end{bmatrix} = 
+  \begin{bmatrix} 
+    r_{11} & r_{12} & r_{13} \\
+    0 & r_{22} & r_{23} \\
+    0 & 0 & * \\
+    0 & 0 & *
+  \end{bmatrix}
+  \\
+  \left(I - \tau_3
+    \begin{bmatrix} 0 \\ 0 \\ 1 \\ w_{43} \end{bmatrix}
+    \begin{bmatrix} 0 & 0 & 1 & w_{43} \end{bmatrix} 
+  \right) 
+  \begin{bmatrix} 
+    r_{11} & r_{12} & r_{13} \\
+    0 & r_{22} & r_{23} \\
+    0 & 0 & \times \\
+    0 & 0 & \times
+  \end{bmatrix} = 
+  \begin{bmatrix} 
+    r_{11} & r_{12} & r_{13} \\
+    0 & r_{22} & r_{23} \\
+    0 & 0 & r_{33} \\
+    0 & 0 & 0
+  \end{bmatrix}
+\end{align}
+
+We do not need to explicitly store the factors as separate entities; we can re-use the storage of $A$ by recognizing that the number of nontrivial parameters in the Householder vector at each step is the same as the number of zeros produced by that transformation.
+This gives us the following:
+```{julia}
+#| output: false
+# Overwrite A with a representation of the QR factorization
+function hqr!(A)
+    m,n = size(A)
+    tau = zeros(n)
+
+    for j = 1:n
+
+        # Find H = I-tau*w*w' to zero out A[j+1:end,j]
+        normx = norm(A[j:end,j])
+        s     = -sign(A[j,j])
+        u1    = A[j,j] - s*normx  # Minimize cancellation
+        w     = A[j:end,j]/u1
+        w[1]  = 1.0
+        A[j+1:end,j] = w[2:end]   # Save trailing part of w
+        A[j,j] = s*normx          # Diagonal element of R
+        tau[j] = -s*u1/normx      # Save scaling factor
+
+        # Update trailing submatrix by multiplying by H
+        A[j:end,j+1:end] -= tau[j]*w*(w'*A[j:end,j+1:end])
+
+    end
+
+    A, tau
+end
+
+# Version that does not overwrite (copies the input storage)
+hqr(A) = hqr!(copy(A))
+```
+
+The Householder QR with compact storage simultaneously gives us most of the benefits of the full QR and the economy QR.
+The cost to store the compact form is $O(mn)$, but if we ever need the full $Q$ or $Q^T$ explicitly, we can always form it from the compressed representation.
+We can also multiply by $Q$ and $Q^T$ implicitly in $O(mn)$ time:
+```{julia}
+function applyQ!(QR, tau, X)
+    m, n = size(QR)
+    for j = n:-1:1
+        w = [1.0; QR[j+1:end,j]]
+        X[j:end,:] -= tau[j]*w*(w'*X[j:end,:])
+    end
+    X
+end
+
+function applyQT!(QR, tau, X)
+    m, n = size(QR)
+    for j = 1:n
+        w = [1.0; QR[j+1:end,j]]
+        X[j:end,:] -= tau[j]*w*(w'*X[j:end,:])
+    end
+    X
+end
+
+applyQ(QR, tau, X) = applyQ!(QR, tau, copy(X))
+applyQT(QR, tau, X) = applyQT!(QR, tau, copy(X))
+```
+
+As usual, it is helpful to sanity check our codes
+
+```{julia}
+let
+    # Set up sample LS and solve with built-ins
+    A = randn(10,5)
+    b = A*rand(5) + 1e-2*randn(10)
+    xref = A\b
+
+    # Compute QR factorization
+    QR, tau = hqr(A)
+
+    # Reconstruct A with QR and check reconstruction error
+    A2 = applyQ(QR, tau, [UpperTriangular(QR[1:5,1:5]); zeros(5,5)])
+    relerrA = norm(A2-A)/norm(A)
+
+    # Solve LS problem with QR and check vs reference
+    x = UpperTriangular(QR[1:5,1:5])\(applyQT(QR, tau, b)[1:5])
+    relerrx = norm(x-xref)/norm(xref)
+
+    relerrA, relerrx
+end
+```
+
+All of this code can be made more efficient (but less easy to read) by not forming an explicit copy of $w$.
+Also, as with Cholesky, the computation can be rearranged to operate on several columns at a time, allowing us to put most of the computational work into "level 3" operations like matrix-matrix multiplication that are very efficient on modern architectures.
+
+### TSQR {.unnumbered}
+
+## SVD
+
+### Starting from QR
+### Bidiagonal reduction
+### Least squares via SVD {.unnumbered}

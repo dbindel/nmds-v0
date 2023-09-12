@@ -376,7 +376,7 @@ We say $\phi$ is *strictly convex* if the inequality is strict.
 A subset $\Omega \subset \mathbb{R}^n$ (or, more generally, a subset of a vector space) is said to be convex if for any $x, y \in \Omega$ and all $\alpha \in (0,1)$, the points $\alpha x + (1-\alpha) y$ lie in $\Omega$.  We say $\Omega$ is strictly convex if the points $\alpha x + (1-\alpha) y$ lie in the interior of $\Omega$.  Convex sets are closed under intersection and direct sum.
 
 The definition of a convex set is arguably fundamental than the notion of a convex function, as we often express arguments about the latter in terms of the former via the *epigraph* of the function.  
-The epigraph (or *supergraph* of a function $\phi : \bbR^n \rightarrow \bbR$ is the set on or above the graph of $phi$, i.e.
+The epigraph (or *supergraph* of a function $\phi : \bbR^n \rightarrow \bbR$ is the set on or above the graph of $\phi$, i.e.
 $$
   \operatorname{epi}(\phi) = \{ (x,y) \in \bbR^n \times \bbR : y \geq f(x) \}.
 $$

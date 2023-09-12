@@ -1,0 +1,34 @@
+# Least Squares
+
+::: {.content-hidden unless-format="html"}
+{{< include _common.tex >}}
+:::
+
+The standard *linear least squares* problem is
+$$
+  \mbox{minimize } \frac{1}{2} \|Ax-b\|^2
+$$
+where the columns of $A$ are generally interpreted as factors in a regression and the column vector $b$ is a measured signal that we seek to approximate as a linear combination of the factors (the vector $x$ is the vector of coefficients).
+More generally, a *nonlinear* least squares problem has the form
+$$
+  \mbox{minimize } \frac{1}{2} \|f(x)\|^2,
+$$
+where $f : \bbR^n \rightarrow \bbR^m$ with $m > n$.
+Closely related to linear and nonlinear least squares problems, for the underconstrained case we have the *minimum norm* problems
+$$
+  \mbox{minimize } \frac{1}{2} \|x\|^2 \mbox{ s.t. } Ax=b
+$$
+or the nonlinear variant
+$$
+  \mbox{minimize } \frac{1}{2} \|x\|^2 \mbox{ s.t. } f(x) = 0.
+$$
+In practice, least squares problems are often simultaneously overdetermined and (nearly) underconstrained, so that we need to solve *regularized* forms of our problems.
+
+Methods to solve least squares problems are important for several reasons:
+
+- Statistically, least square regression is the "right" thing to do when we fit a model to noisy data where the noise is assumed to be Gaussian.
+- Geometrically, the least squares ansatz has the nice interpretation of making the residual error orthogonal to the model space.
+- Linear least squares is a quadratic optimization problem, and so can be analyzed and solved directly using methods of linear algebra.  This is not true of other types of norm minimization problems.
+- Even in situations where we want to solve a more complicated problem, linear or nonlinear least squares algorithms are a building block that can be used in algorithms for those more complex problems.
+
+Linear least squares algorithms will be treated in any book on numerical linear algebra; some good examples include those by Trefethen and Bau [-@trefethen-bau-2022], Demmel [-@demmel-anla-1997], and Golub and Van Loan [-@gvl-2013].  The book by Björck [-@bjork-1996] is more specialized to least squares, but covers nonlinear least squares along with the linear case.

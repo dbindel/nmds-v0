@@ -502,7 +502,7 @@ $$
   Q_n(x) = \sqrt{\frac{2n+1}{2}} P_n(x).
 $$
 
-### Gram-Schmidt {.unnumbered}
+### Gram-Schmidt {.unnumbered} {#sec-gram-schmidt}
 
 Let $X$ be a basis quasi-matrix for an $n$-dimensional space $\calV$.
 The *Gram-Schmidt orthonormalization* process gives us a way of constructing an orthonormal basis $Q$ for $\calV$ such that for all $k \leq n$

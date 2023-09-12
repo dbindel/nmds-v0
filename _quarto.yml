@@ -15,9 +15,15 @@ book:
         - bg_cs.qmd
         - bg_error.qmd
         - bg_julia.qmd
+    - part: lsq.qmd
+      chapters:
+        - lsq_linear.qmd
+        - lsq_factor.qmd
     - references.qmd
 
 bibliography: references.bib
+
+engine: knitr
 
 format:
   html:

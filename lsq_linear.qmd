@@ -1,0 +1,331 @@
+# Linear Least Square Fundamentals
+
+::: {.content-hidden unless-format="html"}
+{{< include _common.tex >}}
+:::
+
+```{julia}
+#| echo: false
+using LinearAlgebra
+using Plots
+using QuadGK
+```
+
+## Introduction
+
+A *linear least squares* problem involves minimization of a (squared) Euclidean norm of some vector:
+$$
+  \mbox{minimize } \frac{1}{2} \|r\|^2 \mbox{ s.t. } r = Ax-b
+$$
+where we assume that $A \in \bbR^{m \times n}$ with $m > n$ (i.e. $A$ is a "tall and skinny" matrix) and $b \in \bbR^m$ are known and $x \in \bbR^n$ is to be determined.
+
+Why is the ordinary least squares problem interesting?
+There are at least three natural responses.
+
+1. *Simplicity:* The least squares problem is one of the simplest formulations around for fitting linear models.  The quadratic loss model is easy to work with analytically; it is smooth; and it leads to a problem whose solution is linear in the observation data.  The solution to the least squares problem is $x = A^\dagger b$ where $A^\dagger$ is the *Moore-Penrose pseudoinverse* of $A$.
+2. *Geometry:* There is a nice picture that goes with the least squares problem -- the least squares solution is the projection of $b$ onto the range of $A$, and the residual at the least squares solution is orthogonal to the range of $A$.
+3. *Statistics:* The least squares problem is the optimal approach to parameter estimation among linear unbiased estimators, assuming independent Gaussian noise.  The least squares problem is also the maximum likelihood estimator under these same hypotheses.
+4. *It's a building block:* Linear least squares are not the right formulation for all regression problems --- for example, they tend to lack robustness in the face of heavy-tailed, non-Gaussian random errors.  But even for these cases, ordinary least squares is a useful *building block*.  Because least squares problems are linear in the observation vector, they are amenable to direct attack by linear algebra methods in a way that other estimation methods are not.  The tools we have available for more complex fitting boil down to linear algebra subproblems at the end of the day, so it is useful to learn how to work effectively with linear least squares.
+
+## Cricket chirps
+
+We begin with an example: estimating the temperature by listening to the rates of crickets chirping.
+The data set given below[^cricket-src] represents measurements of the number of chirps (over 15 seconds) of a striped ground cricket at different temperatures, measured in degrees Farenheit.
+
+```{julia}
+#| output: false
+cricket_chirps_vs_temp =
+  [20 16 20 18 17 16 15 17 15 16 15 17 16 17 14;
+   89 72 93 84 81 75 70 82 69 83 80 83 81 84 76]
+```
+
+A plot of the data shows that the temperature and chirp rate are roughly correlated: the higher the temperature, the faster the crickets chirp; see @fig-cricket-chirps.
+We can quantify this relation by attempting to fit a linear model
+$$
+  \mbox{temperature} = \alpha \cdot \mbox{chirps} + \beta + \epsilon
+$$
+where $\epsilon$ is an error term.  To solve this problem by linear regression, we minimize the norm of the residual
+$$
+  r = Ax-b
+$$
+where the first column of $A$ is the number of chirps in experiment $i$, the second column of $A$ is all ones, the $b$ vector is the vector of temperatures, and $x = \begin{bmatrix} \alpha & \beta \end{bmatrix}^T$ is the vector of model coefficients.
+
+```{julia}
+chirp_model_coeffs = let
+    chirps = cricket_chirps_vs_temp[1,:]
+    temps = cricket_chirps_vs_temp[2,:]
+    A = [chirps ones(length(chirps))]
+    A\temps  # Solve the least squares problem (uses QR factorization)
+end
+```
+
+For rectangular matrices, the backslash operator in Julia (and MATLAB, and Octave) solves the least squares problem efficiently via a matrix factorization[^factor-not-pinv].
+The coefficients tell us that we expect about 3.2 more chirps per degree increase in temperature.
+Of course, this model is completely invalid outside of a narrow temperature range -- crickets only chirp when it is warm enough (they hibernate in the winter when it gets too cold)!
+
+[^factor-not-pinv]: We prefer to use the backslash operator to solve least squares problems (or linear systems) rather than forming the inverse or pseudoinverse with `inv` or `pinv`.  The backslash operator is both more efficient and more numerically stable.
+
+```{julia}
+#| echo: false
+#| label: fig-cricket-chirps
+#| fig-cap: Cricket chirps vs temperature and model fit via linear regression.
+
+plot(cricket_chirps_vs_temp[1,:], cricket_chirps_vs_temp[2,:],
+     seriestype=:scatter, label=:false,
+     xlabel="Chirps", ylabel="Temperature (F)")
+plot!([14; 20], [14 1; 20 1]*chirp_model_coeffs, label=false)
+```
+
+[^cricket-src]: This data set was originally obtained from <http://mste.illinois.edu>.
+
+## Normal equations
+
+In general, the derivative of the squared norm (for vector spaces over $\bbR$) is given by
+$$
+  \delta \left( \frac{1}{2} \|r\|^2 \right) = \langle \delta r, r \rangle;
+$$
+If we want to minimize the Euclidean norm of $r$ (in the real case), we need
+$$
+  \langle \delta r, r \rangle = 0 \mbox{ for all admissible } \delta r;
+$$
+that is, $r$ is orthogonal (or normal) to any admissible variation $\delta r$ at the point.  Here an "admissible" variation is just one that we could produce by changing the system in an allowed way.
+In the linear least squares setting, the admissible variations are $\delta r = A \delta x$, and the first-order condition for a minimizer is
+$$
+  \forall \delta x \in \mathbb{R}^n, \langle A \delta x, Ax - b \rangle = 0.
+$$
+Using the standard inner product, this gives us
+$$
+  A^T (Ax - b) = A^T A x - A^T b = 0,
+$$
+which is sometimes known as the *normal equations* because the residual is normal to all admissible variations.  The matrix $A^T A$ that appears in the normal equations is sometimes called the *Gram matrix*.
+
+The normal equations have a unique solution when $A$ is full column rank.
+The solution to the normal equations is
+$$
+  (A^T A)^{-1} A^T b = A^\dagger b,
+$$
+where $A^\dagger = (A^T A)^{-1} A$ is the *Moore-Penrose pseudoinverse* of $A$.
+It is a pseudoinverse because $A^\dagger A = I$, but $P = A A^\dagger$ is not an identity.
+Instead, $P$ is a *projector*, i.e. $P^2 = P$.
+We say $P$ is the orthogonal projector onto $\calR(A)$.
+Conceptually, it maps each point to the nearest point in the range space of $A$.
+The projector $I-P$ is the residual projector, for which $\calR(A)$ is the null space.
+
+If you are not entirely happy with the variational calculus argument, there is a more algebraic approach.
+We note that for
+$x = A^\dagger b + z$
+we have
+\begin{align}
+  \|Ax-b\|^2
+  &= \|Az-(I-P)b\|^2 \\
+  &= \|Az\|^2 + \|(I-P)b\|^2
+\end{align}
+by the Pythagorean theorem (since $Az \perp (I-AA^\dagger) b$ by the normal equations).
+When $A$ is full rank, positive definiteness implies that $\|Az\|^2 > 0$ for $z \neq 0$;
+therefore, the minimizer happens at $z = 0$.
+
+## Extended system formulation
+
+An alternate formulation for the normal equations for the linear least squares problem is
+$$
+  \begin{bmatrix} I & A \\ A^T & 0 \end{bmatrix}
+  \begin{bmatrix} r \\ x \end{bmatrix} =
+  \begin{bmatrix} b \\ 0 \end{bmatrix}
+$$
+where the first row in the system defines $r = b-Ax$ and the second row gives the normal condition $A^T r = 0$.
+This formulation is useful both numerically (for iterative refinement) and theoretically (for things like deriving sensitivity estimates).
+
+One way to get the extended system formulation is to derive them from the normal equations.
+Another way is to write the constrained optimization problem
+$$
+  \mbox{minimize } \frac{1}{2} \|r\|^2 \mbox{ s.t. } Ax-b-r = 0,
+$$
+and then apply the method of Lagrange multipliers.
+The Lagrangian for this problem is
+$$
+  L(r, x, \lambda) = \frac{1}{2} \|r\|^2 + \lambda^T (Ax-b-r),
+$$
+and the directional derivatives are
+$$
+  \delta L = 
+    \delta r^T (r - \lambda) +
+    \delta \lambda^T (Ax-b-r) +
+    \delta x^T A^T \lambda.
+$$
+Setting the gradient with respect to $r$ equal to zero gives us $r = \lambda$.  Setting the other two equations to zero gives us precisely the extended system above.
+
+We can apply partial Gaussian elimination to this extended system to get rid of the residual, subtracting $A^T$ times the first equation off the second block equation.  This yields (minus)
+the normal equations $A^T A x = A^T b$ as the remaining equation for $x$ alone.
+
+## Alternate inner products
+
+Almost nothing we have said so far is specific to the standard inner product.  In general, the normal equations are
+$$
+  \langle A, Ax-b \rangle = 0
+$$
+and the specific inner product can be chosen as appropriate to the application.
+As is often the case, considering the polynomial space $\calP_d$ helps make the usefulness of general inner product spaces more clear.
+
+As a concrete example, consider the problem of best approximation of $\exp(x)$ by a low degree polynomial on $[-1, 1]$ in a least squares sense:
+$$
+  \mbox{minimize } \frac{1}{2} \int_{-1}^1 |p(x)-\exp(x)|^2 \, dx \mbox{ s.t. }
+  p(x) = \sum_{j=0}^5 c_j x^j.
+$$
+The Gram matrix in this case has entries that are $L^2$ inner products of the monomials
+$$
+  g_{ij} = \langle x^i, x^j \rangle = \int_{-1}^1 x^i x^j \, dx = 
+  \begin{cases}
+  2/(i+j+1), & i+j \mbox{ even} \\
+  0, & \mbox{ otherwise}
+  \end{cases}
+$$
+The right hand side comes from the inner products
+$$
+  b_i = \langle x^i, \exp(x) \rangle = \int_{-1}^1 x^i \exp(x) \, dx,
+$$
+which we could compute analytically, but instead will evaluate using numerical integration.
+
+```{julia}
+p_ls_exp = let
+    # Solve least squares problem for coefficients
+    G = [(1-(-1)^(i+j+1))/(i+j+1) for i=0:5, j=0:5]
+    b = [quadgk(x -> x^i*exp(x), -1, 1)[1] for i = 0:5]
+    c = G\b
+
+    # Return a function to evaluate the LS polynomial
+    (x) -> dot(c, x.^(0:5))
+end
+```
+
+Unsurprisingly, the polynomial computed this way has better worst-case error over $[-1,1]$ than the Taylor polynomial, even though the Taylor polynomial is more accurate near $0$ (Figure @fig-taylor-vs-ls-exp).
+
+```{julia}
+#| echo: false
+#| label: fig-taylor-vs-ls-exp
+#| fig-cap: Error in Taylor approximation vs least squares approximation to exp(x) for $d = 5$.
+
+let
+    ctaylor = [1.0; 1.0; 1.0/2; 1.0/6; 1.0/24; 1.0/120]
+    ptaylor(x) = dot(ctaylor, x.^(0:5))
+
+    # Illustrate error in least squares approx vs Taylor series
+    xx = range(-1, 1, length=100)
+    plot(xx, p_ls_exp.(xx)-exp.(xx), label="LS")
+    plot!(xx, ptaylor.(xx)-exp.(xx), label="Taylor")
+end
+```
+
+If $M$ is any symmetric positive definite matrix, there is an associated inner product
+$$
+  \langle x, y \rangle_M = y^T M x,
+$$
+and we can write the normal equations in terms of this inner product:
+$$
+  A^T M (Ax - b) = 0.
+$$
+Similarly, we can generalize the alternative form of the least squares
+problem to
+$$
+\begin{bmatrix} M^{-1} & A \\ A^T & 0 \end{bmatrix}
+\begin{bmatrix} \tilde{r} \\ x \end{bmatrix} =
+\begin{bmatrix} b \\ 0 \end{bmatrix}
+$$
+where $\tilde{r} = M r$ is the scaled residual.
+
+## Statistical justification
+
+Consider the model
+$$
+  y_i = \sum_{j=1}^n c_j x_{ij} + \epsilon_i
+$$
+where the *factors* $x_{ij}$ for example $j$ are known, and the observations $y_i$ are assumed to be an (unknown) combination of the factor values plus independent noise terms $\epsilon_i$ with mean zero and variance $\sigma^2$.
+In terms of a linear system, we have
+$$
+  y = X c + \epsilon.
+$$
+
+### Gauss-Markov {.unnumbered}
+
+A *linear unbiased estimator* for $c$ is a linear combination of the observations whose expected value is $c$; that is, we need a matrix $M \in \bbR^{n \times m}$ such that
+$$
+  \bbE[M y] = M X c = c.
+$$
+That is, $M$ should be a pseudo-inverse of $X$.
+Clearly one choice of linear unbiased estimator is $\hat{c} = X^\dagger y$.
+According to the Gauss-Markov theorem, this is actually the *best* linear unbiased estimator, in the sense of miminizing the variance.
+To see this, consider any other linear unbiased estimator.
+We can always write such an estimator as
+$$
+  \tilde{c} = (X^\dagger + D) y
+$$
+where $D \in \bbR^{n \times m}$ satisfies $D X = 0$.  Then
+\begin{align*}
+  \Var(\tilde{c})
+  &= \Var((X^\dagger + D) y) \\
+  &= (X^\dagger + D) (\sigma^2 I) (X^\dagger + D) \\
+  &= \sigma^2 (X^\dagger + D) (X^\dagger + D)^T \\
+  &= \sigma^2 (X^T X)^{-1} + \sigma^2 D D^T \\
+  &= \Var(\hat{c}) + \sigma^2 D D^T,
+\end{align*}
+i.e. the variance of $\tilde{c}$ exceeds that of $\hat{c}$ by a positive definite matrix.
+And when the noise has covariance $C$, the best linear unbiased estimator satisfies the generalized least squares problem $X^T C^{-1} (Xc-y) = 0$, i.e. the residual is orthogonal to the factor matrix with respect to the *precision* (inverse covariance) inner product.  In alternate form
+$$
+  \begin{bmatrix} C & X \\ X^T & 0 \end{bmatrix}
+  \begin{bmatrix} \tilde{r} \\ c \end{bmatrix} =
+  \begin{bmatrix} y \\ 0 \end{bmatrix}.
+$$
+
+### Maximum likelihood {.unnumbered}
+
+Another estimator for the parameters $c$ in the model $y = Xc + \epsilon$ comes from maximizing the (log) likelihood function.
+If $\epsilon$ is a vector of multivariate Gaussian noise with mean zero and covariance $C$, then the likelihood function is
+$$
+  \ell(y) = \frac{1}{\sqrt{\det(2\pi C)}} \exp\left( -\frac{1}{2} (y-Xc)^T C^{-1} (y-xC) \right),
+$$
+and for a fixed $C$, maximizing the likelihood corresponds to minimizing $\|y-Xc\|_{C^{-1}}^2$.
+
+Of course, Gaussian noise is not the only type of noise.
+More general noise models lead to more complex optimization problems.
+For example, if we assume the $\epsilon_i$ are Laplacian random variables (with probability proportional to $\exp(-|z|)$ rather than $\exp(-z^2)$), then maximizing the likelihood corresponds to maximimizing $\|y-Xc\|_1$ instead of $\|y-Xc\|_2$.
+This gives an estimator that is a *nonlinear* function of the data.
+However, least squares computations can be used as a building block for computing this type of estimator as well.
+
+### Reasoning about the residual {.unnumbered}
+
+When we come to a least squares problem via a statistical model, it is natural to check whether the residual terms behave as one might expect:
+
+- Are there about the same number of positive and negative residuals?
+- If there is a natural "linear" structure to the data, is there evidence of significant auto-correlation between consecutive residuals?
+- Does the residual behave like white noise, or does it concentrate on certain frequencies?
+
+Even when they are small, residuals that do not appear particularly noisy are a sign that the model may not describe the data particularly well.
+
+## Minimum norm problems
+
+So far, we have considered overdetermined problems.
+But it is also interesting to consider minimum norm solutions to underdetermined problems:
+$$
+  \mbox{minimize } \frac{1}{2} \|x\|^2 \mbox{ s.t. } Ax = b
+$$
+where $A \in \bbR^{m \times n}$ and now $m < n$.
+In this case, using the method of Lagrange multipliers, we have
+$$
+  \mathcal{L}(x, \lambda) = \frac{1}{2} \|x\|^2 + \lambda^T (Ax - b)
+$$
+and the stationary equations are
+$$
+0 = \delta \mathcal{L} =
+  \delta x^T (x + A^T \lambda) + \delta \lambda^T (Ax-b)
+$$
+for all $\delta x$ and $\delta \lambda$.
+Alternately, in matrix form, we have
+$$
+  \begin{bmatrix} I & A^T \\ A & 0 \end{bmatrix}
+  \begin{bmatrix} x \\ \lambda \end{bmatrix} =
+  \begin{bmatrix} 0 \\ b \end{bmatrix}.
+$$
+Eliminating the $x$ variable gives us $(AA^T) \lambda = b$, and back-substitution yields
+$$
+  x = A^T (A A^T)^{-1} b.
+$$
+When $A$ is short and wide rather than tall and skinny (and assuming it is full row rank), we say that $A^\dagger = A^T (AA^T)^{-1}$ is the Moore-Penrose pseudo-inverse.
