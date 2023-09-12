@@ -1,0 +1,123 @@
+# Ill-posedness and regularization
+
+::: {.content-hidden unless-format="html"}
+{{< include _common.tex >}}
+:::
+
+We have seen in our discussion of linear systems that sensitivity analysis plays a key role in understanding the effect of perturbations (whether due to roundoff or measurement error) on our computed
+solutions.
+In the case of least squares problems, understanding sensitivity is more complex, but it is -- if anything -- even more critical than in the linear systems case.
+Consequently, this is the setting in which most students of matrix computations are really faced head-on with the practical difficulties of ill-conditioning and the necessity of *regularization*.
+
+## A cautionary tale
+
+To set the stage for our discussion of regularization, we consider a silly story that demonstrates a real problem.
+Suppose you have been dropped on a desert island with a laptop with a magic battery of infinite life, a MATLAB license, and a complete lack of knowledge of basic geometry.
+In particular, while you know about least squares fitting, you have forgotten how to compute the perimeter of a square.
+You vaguely feel that it ought to be related to the perimeter or side length, though, so you set up the following model:
+$$
+  \mbox{perimeter} = \alpha \cdot \mbox{side length} + \beta \cdot \mbox{diagonal}.
+$$
+After measuring several squares, you set up a least squares system $Ax = b$; with your real eyes, you know that this must look like
+$$
+  A = \begin{bmatrix} s & \sqrt{2} s \end{bmatrix}, \quad
+  b = 4 s
+$$
+where $s$ is a vector of side lengths.  The normal equations are therefore
+$$
+A^T A = \|s\|^2
+\begin{bmatrix} 1 & \sqrt{2} \\ \sqrt{2} & 2 \end{bmatrix}, \quad
+A^T b = \|s\|^2
+\begin{bmatrix} 4 \\ 4 \sqrt{2} \end{bmatrix}.
+$$
+This system does have a solution; the problem is that it has far more than one.
+The equations are singular, but consistent.
+We have no data that would lead us to prefer to write $p = 4s$ or $p = 2 \sqrt{2} d$ or something in between.
+The fitting problem is *ill-posed*.
+
+We deliberately started with an extreme case, but some ill-posedness is common in least squares problems.
+As a more natural example, suppose that we measure the height, waist girth, chest girth, and weight of a large number of people, and try to use these factors to predict some other factor such as proclivity to heart disease.
+Naive linear regression -- or any other naively applied statistical estimation technique -- is likely to run into trouble, as the height, weight, and girth measurements are highly correlated.
+It is not that we cannot fit a good linear model; rather, we have too many models that are each almost as good as the others at fitting the data!
+We need a way to choose between these models, and this is the point of regularization.
+
+## Generalization error
+
+Regularization is about finding choosing one of many models that fits the data about equally well.
+Ideally, we would like to choose a model that best generalizes to examples that we have not seen in our training data.
+In order to reason about the generalization properties of a model systematically, we need a little more theory.
+We note that throughout this section, we assume that while we may be fitting models to noisy observations, we will exactly know the factors that are inputs to the models.
+The case where we have uncertain input factors to the model is also interesting, and leads to so-called *total least squares* formulations -- but we will not deal with that case here.
+
+### Bias-variance tradeoff
+
+### Tradeoff for linear least squares
+
+Suppose $A \in \bbR^{M \times n}$ is a matrix of factors that we wish to use in predicting the entries of $b \in \bbR^M$ via the linear model
+$$
+  Ax \approx b.
+$$
+We partition $A$ and $b$ into the first $m$ rows (where we have observations) and the remaining $M-m$ rows (where we wish to use the model for prediction):
+$$
+  A = \begin{bmatrix} A_1 \\ A_2 \end{bmatrix}, \quad
+  b = \begin{bmatrix} b_1 \\ b_e \end{bmatrix}
+$$
+If we could access all of $b$, we would compute $x$ by the least square problem
+$$
+  Ax = b + r, \quad r \perp \mathcal{R}(A).
+$$
+In practice, we are given only $A_1$ and $b_1 + e$ where $e$ is a vector of random errors, and we fit the model coefficients $\hat{x}$ by solving
+$$
+  \mbox{minimize } \|A_1 \hat{x} - (b_1 + e)\|^2.
+$$
+Our question, then: what is the least squared error in using $\hat{x}$ for prediction, and how does it compare to the best error possible?
+That is, what is the relation between $\|A \hat{x}-b\|^2$ and $\|r\|^2$?
+
+Note that
+$$
+  A\hat{x}-b = A(\hat{x}-x) + r
+$$
+and by the Pythagorean theorem and orthogonality of the residual,
+$$
+  \|A\hat{x}-b\|^2 = \|A(\hat{x}-x)\|^2 + \|r\|^2.
+$$
+The term $\|\hat{r}\|^2$ is the (squared) bias term, the part of the error that is due to lack of power in our model.
+The term $\|A(\hat{x}-x)\|^2$ is the variance term, and is associated with sensitivity of the fitting process
+
+### Accuracy and stability
+
+If we dig further into this, we can see that
+\begin{align}
+  x &= A_1^\dagger (b_1 + r_1) &
+  \hat x &= A_1^\dagger (b_1 + e),
+\end{align}
+and so
+$$
+  \|A(\hat x - x)\|^2 = \|A A_1^\dagger (e-r_1)\|^2
+$$
+Taking norm bounds, we find
+$$
+  \|A(\hat x - x)\| \leq \|A\| \|A_1^\dagger\| (\|e\| + \|r_1)\|),
+$$
+and putting everything together,
+$$
+  \|A\hat{x}-b\| \leq (1+\|A\| \|A_1^\dagger\|) \|r\| + \|A\|
+  \|A_1^\dagger\| \|e\|.
+$$
+If there were no measurement error $e$, we would have a *quasi-optimality* bound saying that the squared error in prediction via $\hat{x}$ is within a factor of $1 + \|A\| \|A_1^\dagger\|$ of the best squared error available for any similar model.
+If we scale the factor matrix $A$ so that $\|A\|$ is moderate in size, everything boils down to $\|A_1^\dagger\|$.
+
+## Regularization tactics
+
+When $\|A_1^\dagger\|$ is large, the problem of fitting to training data is ill-posed, and the accuracy can be compromised.
+What can we do?
+The problem with ill-posed problems is that they admit many solutions of very similar quality.
+In order to distinguish between these possible solutions to find a model with good predictive power, we consider *regularization*:
+that is, we assume that the coefficient vector $x$ is not too large in norm, or that it is sparse.  Different statistical assumptions give rise to different regularization strategies; for the current discussion, we shall focus on the computational properties of a few of the more common regularization strategies without going into the details of the statistical assumptions.
+In particular, we consider four strategies in turn
+
+1. *Factor selection* via {\em pivoted QR}.
+2. *Tikhonov regularization* and its solution.
+3. *Truncated SVD* regularization.
+4. *$\ell^1$ regularization* or the *lasso*.
+

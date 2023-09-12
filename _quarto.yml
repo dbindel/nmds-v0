@@ -19,6 +19,8 @@ book:
       chapters:
         - lsq_linear.qmd
         - lsq_factor.qmd
+        - lsq_sensitivity.qmd
+        - lsq_regularized.qmd
     - references.qmd
 
 bibliography: references.bib

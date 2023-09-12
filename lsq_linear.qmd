@@ -244,7 +244,7 @@ $$
   y = X c + \epsilon.
 $$
 
-### Gauss-Markov {.unnumbered}
+### Gauss-Markov
 
 A *linear unbiased estimator* for $c$ is a linear combination of the observations whose expected value is $c$; that is, we need a matrix $M \in \bbR^{n \times m}$ such that
 $$
@@ -275,7 +275,7 @@ $$
   \begin{bmatrix} y \\ 0 \end{bmatrix}.
 $$
 
-### Maximum likelihood {.unnumbered}
+### Maximum likelihood
 
 Another estimator for the parameters $c$ in the model $y = Xc + \epsilon$ comes from maximizing the (log) likelihood function.
 If $\epsilon$ is a vector of multivariate Gaussian noise with mean zero and covariance $C$, then the likelihood function is
@@ -290,7 +290,7 @@ For example, if we assume the $\epsilon_i$ are Laplacian random variables (with 
 This gives an estimator that is a *nonlinear* function of the data.
 However, least squares computations can be used as a building block for computing this type of estimator as well.
 
-### Reasoning about the residual {.unnumbered}
+### Reasoning about the residual
 
 When we come to a least squares problem via a statistical model, it is natural to check whether the residual terms behave as one might expect:
 

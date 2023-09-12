@@ -31,7 +31,7 @@ Unless $H$ has usable data sparsity, Cholesky factorization of $H$ takes $O(n^3)
 
 [^rtr-vs-llt]: Cholesky factorization is sometimes written $R^T R$ for upper triangular $R$, and sometimes $LL^T$ for lower triangular $L$.  The two are equivalent -- just set $L = R^T$.
 
-### Least squares solve {.unnumbered}
+### Least squares solve
 
 Given the Cholesky factorization $A^T A = R^T R$, we can write $x = A^\dagger B$ as
 $$
@@ -72,7 +72,7 @@ end
 
 If $A \in \bbR^{m \times n}$ and $B \in \bbR^{m \times p}$, the cost of this code is $O(mn^2 + mnp)$, where the first term comes from forming $H$ and computing the Cholesky factorization and the second term comes from forming $A^T B$ and applying the $p$ triangular solves.
 
-### Existence and computation {.unnumbered}
+### Existence and computation
 
 The proof that Cholesky factorizations exist is the same as the algorithm used to compute them.
 We proceed by induction on the dimension of $H$.  For $n = 1$, a 1-by-1 positive definite matrix is just a positive number, and the Cholesky factorization is the square root of that number.  For $n > 1$, consider a block 2-by-2 partitioning of $H$ and write the equations a Cholesky factorization would have to satisfy
@@ -134,7 +134,7 @@ For larger matrices, we use an algorithm like `simple_chol` to process one diago
 These operations involve large matrix-matrix operations that can be done relatively efficiently on modern machines.
 The efficient implementation of Cholesky factorization in Julia can be accessed with the [`cholesky`](https://docs.julialang.org/en/v1/stdlib/LinearAlgebra/#LinearAlgebra.cholesky) function.
 
-### Iterative refinement {.unnumbered}
+### Iterative refinement
 
 While solving the normal equations via Cholesky is perfectly reasonable in exact arithmetic, it suffers some mild numerical difficulty when $A$ is moderately ill-conditioned, i.e. when the $\sigma_1(A)/\sigma_n(A)$ is large.
 However, we can partially remedy this problem by "cleaning up" the solution, a process known as *iterative refinement*.
@@ -185,7 +185,7 @@ while the version involving the rectangular $Q_1$ matrix is the "economy QR."
 There are several possible ways to compute the QR decomposition (full or economy).
 The basic building block that we will use most frequently is the Householder QR algorithm, but for completeness we also discuss two others.
 
-### Least squares via QR {.unnumbered}
+### Least squares via QR
 
 Consider the decomposition
 $$
@@ -226,7 +226,7 @@ end
 We recommend simply writing `A\b` if there is only one least squares problem involving $A$.
 If there are likely to be multiple such problems, the recommended approach is to use `F\b` where `F` is the factorization object.
 
-### QR via normal equations {.unnumbered}
+### QR via normal equations
 
 Given a Cholesky factorization of the Gram matrix
 $$
@@ -261,7 +261,7 @@ Then one can use $R$ from the QR factorization in the formula $x = R^{-1} (R^{-T
 
 [^qr-cholesky-up-to-scaling]: The $R$ factor in QR is only unique up to the signs of the rows of $R$ (and columns of $Q$). In the Cholesky factorization algorithm, we typically choose a positive square root for the diagonal entries.  In the QR factorization, there is no requirement that the diagonal entries of $R$ by normalized. 
 
-### Gram-Schmidt {.unnumbered}
+### Gram-Schmidt
 
 The *classical Gram-Schmidt process* is the first version of QR factorization that most students learn, though they typically don't learn it as a matrix factorization.  The code computes
 \begin{align}
@@ -341,7 +341,7 @@ Because the modified Gram-Schmidt behaves so much better, classical Gram-Schmidt
 However, there are some circumstances where modified Gram-Schmidt is a reasonable option, particularly in the construction of Krylov subspace methods for solving linear systems and least squares problems or for computing eigenpairs of large matrices.
 The influence of loss of orthogonality in these algorithms is subtle, and sometimes causes real issues; when it does, an iterative-refinement-like process called reorthogonalization sometimes provides a remedy.
 
-### Householder QR {.unnumbered}
+### Householder QR
 
 One way of expressing the Gaussian elimination algorithm is in terms of Gauss transformations that serve to introduce zeros into the lower triangle of a matrix.
 *Householder* transformations are orthogonal transformations (reflections) that can be used to similar effect.
@@ -531,10 +531,121 @@ end
 All of this code can be made more efficient (but less easy to read) by not forming an explicit copy of $w$.
 Also, as with Cholesky, the computation can be rearranged to operate on several columns at a time, allowing us to put most of the computational work into "level 3" operations like matrix-matrix multiplication that are very efficient on modern architectures.
 
-### TSQR {.unnumbered}
+### TSQR
+
+On parallel machines, we may sometimes want different processors to handle different parts of a QR factorization.
+One way to handle this is the *tall skinny QR algorithm* (TSQR), which is particularly appropriate when $m \gg n$.
+The idea of TSQR is to write $A$ in block form as a vertical concatenation of pieces, e.g.
+$$
+  A = \begin{bmatrix} A_1 \\ A_2 \end{bmatrix}
+$$
+The (economy) QR factorizations of the pieces can be computed independently and (notionally) combined into a factorization of $A$ as an $m \times 2n$ matrix with orthonormal columns and a matrix in $\bbR^{2n \times n}$ formed from the $R$ factors.
+$$
+  A 
+  = \begin{bmatrix} A_1 \\ A_2 \end{bmatrix}
+  = \begin{bmatrix} Q_1 R_1 \\ Q_2 R_2 \end{bmatrix}
+  = \begin{bmatrix} Q_1 & 0 \\ 0 & Q_2 \end{bmatrix}
+    \begin{bmatrix} R_1 \\ R_2 \end{bmatrix}.
+$$
+Finally, we can compute an economy QR factorization of the second factor
+$$
+  \begin{bmatrix} R_1 \\ R_2 \end{bmatrix}
+  = \tilde{Q} R
+$$
+and combine $\tilde{Q}$ with the previous QR factorizations to obtain a final QR factorization
+$$
+  A = \left( \begin{bmatrix} Q_1 & 0 \\ 0 & Q_2 \end{bmatrix} \tilde{Q} \right) R
+$$
+
+As before, we do not need to use an explicit representation of the orthogonal factor for most purposes.
+Instead, we just need a way to apply the orthogonal factor (or its transpose) to one or more vectors.
+```{julia}
+let
+    # -- Set up and solve a random least squares example
+    A = randn(20,5)
+    b = A*rand(5) + 1e-2*rand(20)
+    xref = A\b
+
+    # -- Solve via the TSQR strategy
+
+    # Compute the three QR factorizations 
+    QR1 = qr(A[1:10,:])
+    QR2 = qr(A[11:20,:])
+    QRt = qr([QR1.R; QR2.R])
+
+    # Compute the overall Q'*b
+    Q1T_b1 = (QR1.Q'*b[1:10])[1:5]
+    Q2T_b2 = (QR2.Q'*b[11:20])[1:5]
+    QT_b = (QRt.Q'*[Q1T_b1; Q2T_b2])[1:5]
+
+    # Solve with the triangular factor
+    x = QRt.R\QT_b
+
+    # Show the relative error
+    norm(x-xref)/norm(xref)
+end
+```
+
+The TSQR algorithm is really more of a framework than a specific algorithm: depending on how data and processors are arranged, it may make most sense to use more than two panels, apply the algorithm recursively, etc.
 
 ## SVD
 
-### Starting from QR
+We have discussed the Singular Value Decomposition (SVD) previously as one of the factorizations associated with a canonical form for a linear map.  Like the QR factorization, the SVD comes in "full" and "economy" forms.  For $A \in \bbR^{m \times n}$ with $m > n$, these are
+$$
+  A =
+  \begin{bmatrix} U_1 & U_2 \end{bmatrix}
+  \begin{bmatrix} \Sigma \\ 0 \end{bmatrix}
+  V^T = U_1 \Sigma V^T.
+$$
+In the case of QR, we saw that the Householder QR essentially gave us the "best of both worlds," providing access to the full $Q$ matrix but with the storage and operation cost requirements of an economy factorization.
+In the case of the standard SVD algorithms applied to a full matrix, we default to an explicit representation of the two orthogonal factors as dense matrices.
+The `full` flag to the Julia [`svd`](https://docs.julialang.org/en/v1/stdlib/LinearAlgebra/#LinearAlgebra.svd) routine allows us to specify whether we want the full or economy factorization; by default, the flag is false, yielding the economy factorization.
+
+### Least squares via SVD
+
+In terms of the economy SVD, the Moore-Penrose pseudoinverse is
+$$
+  A^\dagger = (A^T A)^{-1} A = V \Sigma^{-1} U^T.
+$$
+In code, we can use backslash with the factorization object to solve a least squares problem, or we can access the individual factors to apply the pseudoinverse.
+```{julia}
+let
+    # Set up demo problem
+    A = randn(10,5)
+    b = A*rand(5) + 1e-2*randn(10)
+    xref = A\b
+
+    # Compute SVD and solve via factorization object or factors
+    F = svd(A)
+    x1 = F\b
+    x2 = F.V*(F.S.\(F.U'*b))
+
+    norm(x1-xref)/norm(xref), norm(x2-xref)/norm(xref)
+end
+```
+Note that we use the dotted version of backslash with `F.S` in the code above.
+This is because the singular values are stored as a vector (rather than as a diagonal matrix), and so elementwise division is used to implement the diagonal solve.
+
 ### Bidiagonal reduction
-### Least squares via SVD {.unnumbered}
+
+The singular value decomposition cannot be computed in closed form in a finite number of steps.
+Instead, it is computed to machine precision by an iterative algorithm.
+However, we can get *close* to the SVD by applying Householder transformations from the left and the right in an alternating fashion in order to reduce the problem to *bidiagonal* form, i.e.
+$$
+  A = UBV^T, \quad B = \begin{bmatrix} \alpha_1 & \beta_1 \\ & \alpha_2 & \beta_2 \\ & & \ddots & \ddots \\ & & & \alpha_{n-1} & \beta_{n-1} \\ & & & & \alpha_n \end{bmatrix}.
+$$
+Bidiagonal reduction is the first (and most expensive) step in most algorithms for computing the singular value decomposition.
+The bidiagonal form can also be used directly to solve the least squares problem, but Julia does not have the convenience functions for bidiagonal reduction that it has for other factorizations.
+The standard linear algebra library does provide access to one of the LAPACK library routines to compute the bidiagonal reduction ([`gebrd!`](https://docs.julialang.org/en/v1/stdlib/LinearAlgebra/#LinearAlgebra.LAPACK.gebrd!)).
+
+### Starting from QR
+
+Bidiagonal reduction is a standard starting point for computing the SVD.
+But particularly for tall skinny matrices, immediate bidiagonal reduction may not be the most efficient option.
+An alternative is to start with a QR decomposition (via Householder QR or the recursive TSQR algorithm), and then compute the SVD of the $R$ factor:
+\begin{align}
+  A &= QR \\
+  R &= \tilde{U} \Sigma V^T \\
+  A &= (Q \tilde{U}) \Sigma V^T.
+\end{align}
+Thought it is possible to form an explicit dense representation of $Q \tilde{U}$, it is usually not necessary.

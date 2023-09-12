@@ -51,7 +51,7 @@ where $\delta$ should be interpreted as "first order change in," so that a symbo
 In introductory calculus classes, this sometimes is called a total derivative or total differential, though there one usually uses $d$ rather than $\delta$.
 There is a good reason for using $\delta$ in the calculus of variations, though, so that's typically what I do.
 
-### Chain rule {.unnumbered}
+### Chain rule
 
 The chain rule tells us we can interchange linearization and composition of functions.  If $f : \mathbb{R}^n \rightarrow \mathbb{R}^m$ and $g : \mathbb{R}^p \rightarrow \mathbb{R}^n$, then near a given $y = g(x)$ and $z = f(y)$ we have
 \begin{align}
@@ -84,7 +84,7 @@ $$
   \nabla_x (f \circ g) = (f'(y) g'(x))^T = g'(x)^T f'(y)^T = \nabla g(x) \nabla f(y).
 $$
 
-### Implicit functions {.unnumbered}
+### Implicit functions
 
 Suppose $F : \bbR^n \times \bbR^m \rightarrow \bbR^n$ is continuously differentiable, and write the Jacobian in block form as
 $$
@@ -124,7 +124,7 @@ One *can* do this computation element by element, but it's harder to do it witho
 
 ## Taylor approximation
 
-### Single variable {.unnumbered}
+### Single variable
 
 If $f : \bbR \rightarrow \bbR$ is differentiable, then by the fundamental theorem of calculus, we have
 $$
@@ -171,7 +171,7 @@ $$
   f(x+z) = f(x) + f'(x) z + \frac{1}{2} f''(x) z^2 + O(z^3).
 $$
 
-### Multivariable case {.unnumbered}
+### Multivariable case
 
 In more than one space dimension, the basic picture of Taylor's theorem remains the same.
 If $f : \bbR^n \rightarrow \bbR^m$, then
@@ -194,7 +194,7 @@ $$
   f_i(x+u) = f_i(x) + f_{i,j}(x) u_j + \frac{1}{2} f_{i,jk}(x) u_j u_k + \frac{1}{6} f_{i,jkl}(x) u_j u_k u_l + \ldots.
 $$
 
-### Finite differencing {.unnumbered}
+### Finite differencing
 
 Suppose $f : \mathbb{R}^n \rightarrow \mathbb{R}^m$ is twice continuously differentiable.
 Then taking the Taylor expansion with remainder
@@ -211,7 +211,7 @@ $$
 $$
 Among other things, finite difference approximations are extremely useful when we want to sanity check an analytical formula for a derivative.
 
-### Matrix series {.unnumbered}
+### Matrix series
 
 Let $f : \mathbb{C} \rightarrow \mathbb{C}$ be represented near 0 by a power series
 $$
@@ -232,7 +232,7 @@ $$
 $$
 More broadly, if $f$ converges in an open set containing all the eigenvalues, then $f(A)$ converges.
 
-### Neumann series {.unnumbered}
+### Neumann series
 
 We don't need to remember a library of Taylor expansions, but it is useful to remember that for real $|\alpha| < 1$, we have the *geometric* series
 $$
@@ -249,7 +249,7 @@ $$
 
 ## Optimization
 
-### Derivative tests {.unnumbered}
+### Derivative tests
 
 Suppose $\phi : \mathbb{R}^n \rightarrow \mathbb{R}$ is differentiable at $x$.  Then
 $$
@@ -273,7 +273,7 @@ Hence, near $x$ the dominant term in the Taylor expansion is the quadratic form 
 - When the Hessian has both positive and negative eigenvalues (directions of positive and negative curvature), the stationary point is neither a maximum nor a minimum, but a saddle point.
 - When the Hessian is positive semidefinite or negative semidefinite, it could be a local minimum or a local maximum -- but one needs to check higher order derivatives to be sure.
 
-### Equality constraints {.unnumbered}
+### Equality constraints
 
 Now suppose we want to minimize $\phi : \bbR^n \rightarrow \bbR$ over $\Omega \subset \bbR^n$ defined by equality constraints:
 $$
@@ -319,7 +319,7 @@ In this setting, the matrix $H$ is always indefinite, but we can write a version
 - We have a strong local maximum if $H$ has $n-m$ negative eigenvalues.
 - We have a saddle point if $H$ has at fewer than $n-m$ positive eigenvalues and fewer than $n-m$ negative eigenvalues.
 
-### KKT conditions {.unnumbered}
+### KKT conditions
 
 Now suppose that we seek to optimize $\phi : \Omega \rightarrow \bbR$ where $\Omega$ is defined by equality and inequality constraints:
 $$
@@ -349,7 +349,7 @@ As with the equality-constrained case, we need a condition on the constraints to
 
 The second derivative test in the inequality constrained case is basically the same as the test in the equality constrained case.
 
-### Physical interpretation {.unnumbered}
+### Physical interpretation
 
 A physical picture is often a useful device for remembering the stationarity conditions for optimization problems.
 In the unconstrained case, we can think about solving a minimization problem by rolling a tiny ball down hill until it came to rest.
@@ -365,7 +365,7 @@ $$
 $$
 The Lagrange multiplier $\mu$ in this picture represents the magnitude of the restoring force from the wall balancing the tendency to roll downhill.
 
-### Convexity {.unnumbered}
+### Convexity
 
 A function $\phi : \bbR^n \rightarrow \bbR$ is *convex* if for any distinct $x, y \in \bbR^n$ and for all $\alpha \in (0, 1)$
 $$
@@ -452,7 +452,7 @@ A *contraction mapping* $G : \Omega \rightarrow \Omega$ is a Lipschitz function 
 We sat the map $G$ is *locally contractive* near $x$ if it is Lipschitz with constant $\alpha < 1$ in some local neighborhood of $x$.
 Contraction mappings are a useful tool both for showing the existence and uniqueness of solutions to systems of equations (or optimization problems) and for constructing algorithms to find such solutions.
 
-### Banach fixed point theorem {.unnumbered}
+### Banach fixed point theorem
 
 Assuming $\Omega$ is a closed subset of a Banach space[^banach-vs-metric], then $G$ has a unique fixed point $x_* \in \Omega$, i.e. a unique point such that $G(x_*) = x_*$.
 This fact is variously called the *contraction mapping theorem* and the *Banach fixed point theorem*.
@@ -486,7 +486,7 @@ $$
 
 [^banach-vs-metric]: The Banach fixed point theorem applies to any complete metric space.  But all the examples in this class will be closed subsets of Banach spaces, so we will stick to that setting.
 
-### Local convergence {.unnumbered}
+### Local convergence
 
 Now suppose that $G$ has a fixed point $x_*$, and $\|G'(x)\| \leq \alpha < 1$ over some closed ball $\bar{B}_{\rho}(x_*) = \{x : \|x-x_*\| \leq \rho\}$.  Then
 $$
@@ -494,7 +494,7 @@ $$
 $$
 and so $G$ maps the ball into itself.  Therefore, $G$ is a contraction mapping on $\bar{B}_\rho(x_*)$, and fixed point iteration from any starting point in that ball will converge to the unique fixed point $x_*$ within the ball.
 
-### Preventing escape {.unnumbered}
+### Preventing escape
 
 The contraction mapping theorem is useful both for telling us that a fixed point exists and is unique, and for giving us an iteration that converges to that fixed point.
 But sometimes it is difficult to get *global* contractivity.
